@@ -5,11 +5,11 @@ project can be a rather awkward fit. Most of the code I write isn't complete
 enough to warrant the commitment of a separate repo, but I still often find
 myself wanting to use it in multiple places (or at least share it with others!)
 
-So, hear me out, why shouldn't I just put most of my code in one repo?
+So, hear me out--why shouldn't I just put most of my code in one repo?
 
-I know some of you internet people like to sound smart by shitting on monorepos
-by accusing their proponents of cargo-culting google or whatever. Think about
-it though, doesn't most of the stuff you work on end up in a few buckets?
+I know some of you internet people like to sound smart shitting on monorepos by
+accusing their proponents of cargo-culting google or whatever. Think about it
+though, doesn't most of the stuff you work on end up in a few buckets?
 
 1. Common snippets or pillaged bits of other projects.
 2. Abstraction you develop for one project, but then want to extend for a
