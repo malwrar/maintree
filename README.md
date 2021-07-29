@@ -43,9 +43,10 @@ Brief summary of what you'll find in this repo:
 ## contributing
 
 **Be sure to make your changes based on the `stable` branch**
-([convenient github link][1]). `unstable` is the default branch and is where I
-do most of my development. I'd change it, but then my github wouldn't look as
-pretty to casual browsers :wink:).
+([convenient github link][]https://github.com/malwrar/maintree/tree/stable).
+`unstable` is the default branch and is where I do most of my development. I'd
+change it, but then my github wouldn't look as pretty to casual browsers
+:wink:).
 
 If you manage to build any of the projects in this repo and want to share any
 changes and/or additions you've made, I'm happy to accept them via pull request
