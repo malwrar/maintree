@@ -39,6 +39,18 @@ Brief summary of what you'll find in this repo:
 - [trash](./trash): Stuff that takes up space but I don't want to get rid of.
 - [secret](./secret): Don't think about it.
 
+## building stuff
+
+*WARNING*: bazel seems to break with jdk16+, I suggest using jdk11 if you want
+to build anything here.
+
+Simple command to list all the targets that can be built:
+
+```shell
+pwd  # make sure you're in the maintree root dir
+bazel query ...
+```
+
 
 ## contributing
 
