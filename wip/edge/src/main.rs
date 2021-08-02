@@ -1,5 +1,7 @@
-extern crate window_system;
+extern crate rust;
 
 fn main() {
+
     println!("Hello, world!");
+    rust::hi();
 }
