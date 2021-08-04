@@ -19,10 +19,10 @@ though, doesn't most of the stuff you work on end up in a few buckets?
 5. Code split across multiple locations and difficult to find or use with
    editor autocompletion.
 
-I at least find that 99% of the time one or of the above is true, and so this
-repo is an attempt to solve all of those problems at once by putting everything
-in one place under one build system (and all it costs is a little bit of bazel
-wrangling!)
+I at least find that 99% of the time one or more of the above is true, and so
+this repo is an attempt to solve all of those problems at once by putting
+everything in one place under one build system (and all it costs is a little
+bit of bazel wrangling!)
 
 
 ## map
@@ -38,6 +38,7 @@ Brief summary of what you'll find in this repo:
   with interesting libraries or a trying out a new database.
 - [trash](./trash): Stuff that takes up space but I don't want to get rid of.
 - [secret](./secret): Don't think about it.
+
 
 ## building stuff
 
