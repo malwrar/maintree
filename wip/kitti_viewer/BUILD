@@ -1,11 +1,11 @@
 load("@rules_rust//rust:rust.bzl", "rust_binary")
 
 rust_binary(
-  name = "main",
+  name = "rust_bin",
   srcs = [
     "src/main.rs",
   ],
   deps = [
-    "//common/window_system:rust"
+    "//common/parsing:rust_lib"
   ],
 )
