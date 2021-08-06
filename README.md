@@ -37,7 +37,6 @@ Brief summary of what you'll find in this repo:
 - [random](./random): Ideas that don't have a good category, like experimenting
   with interesting libraries or a trying out a new database.
 - [trash](./trash): Stuff that takes up space but I don't want to get rid of.
-- [secret](./secret): Don't think about it.
 
 
 ## building stuff
