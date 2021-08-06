@@ -1,0 +1,52 @@
+[package]
+name = "compile_with_bazel"
+version = "0.0.0"
+
+# Mandatory (or Cargo tooling is unhappy)
+[lib]
+path = "fake_lib.rs"
+
+[dependencies]
+env_logger = "=0.8.4"
+kdtree = "=0.6.0"
+lazy_static = "=1.4.0"
+legion = "=0.4.0"
+log = "=0.4.14"
+#rendy = "=0.5.1"
+rayon = "=1.5.1"
+rlua = "=0.17.0"
+serde = "=1.0.127"
+serde-diff = "=0.4.1"
+specs = "=0.17.0"
+tokio = "=1.9.0"
+
+[package.metadata.raze]
+# The path at which to write output files.
+#
+# `cargo raze` will generate Bazel-compatible BUILD files into this path.
+# This can either be a relative path (e.g. "foo/bar"), relative to this
+# Cargo.toml file; or relative to the Bazel workspace root (e.g. "//foo/bar").
+workspace_path = "//third_party/cargo"
+
+# This causes aliases for dependencies to be rendered in the BUILD
+# file located next to this `Cargo.toml` file.
+package_aliases_dir = "."
+
+# The set of targets to generate BUILD rules for.
+targets = [
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+
+# Store dependencies in the src tree.
+genmode = "Vendored"
+
+# Should make crates build by default much easier, at the cost of builds
+# possibly not being hermetic. More info: https://github.com/google/cargo-raze/tree/master#build-scripts-by-default
+default_gen_buildrs = true
+
+[package.metadata.raze.crates.shaderc-sys.'*']
+additional_deps = [
+    "@//third_party/shaderc:libshaderc",
+]

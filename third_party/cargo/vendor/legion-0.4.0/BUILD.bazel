@@ -1,0 +1,103 @@
+"""
+@generated
+cargo-raze crate build file.
+
+DO NOT EDIT! Replaced on runs of cargo-raze
+"""
+
+# buildifier: disable=load
+load("@bazel_skylib//lib:selects.bzl", "selects")
+
+# buildifier: disable=load
+load(
+    "@rules_rust//rust:rust.bzl",
+    "rust_binary",
+    "rust_library",
+    "rust_test",
+)
+
+package(default_visibility = [
+    # Public for visibility by "@raze__crate__version//" targets.
+    #
+    # Prefer access through "//third_party/cargo", which limits external
+    # visibility to explicit Cargo.toml dependencies.
+    "//visibility:public",
+])
+
+licenses([
+    "notice",  # MIT from expression "MIT"
+])
+
+# Generated Targets
+
+# Unsupported target "benchmarks" with type "bench" omitted
+
+# Unsupported target "insertion" with type "bench" omitted
+
+# Unsupported target "parallel_query" with type "bench" omitted
+
+# Unsupported target "transform" with type "bench" omitted
+
+rust_library(
+    name = "legion",
+    srcs = glob(["**/*.rs"]),
+    crate_features = [
+        "codegen",
+        "crossbeam-channel",
+        "crossbeam-events",
+        "default",
+        "erased-serde",
+        "legion_codegen",
+        "parallel",
+        "rayon",
+        "scoped-tls-hkt",
+        "serde",
+        "serialize",
+    ],
+    crate_root = "src/lib.rs",
+    crate_type = "lib",
+    data = [],
+    edition = "2018",
+    proc_macro_deps = [
+        "//third_party/cargo/vendor/legion_codegen-0.4.0:legion_codegen",
+        "//third_party/cargo/vendor/paste-1.0.5:paste",
+    ],
+    rustc_flags = [
+        "--cap-lints=allow",
+    ],
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+    version = "0.4.0",
+    # buildifier: leave-alone
+    deps = [
+        "//third_party/cargo/vendor/atomic_refcell-0.1.7:atomic_refcell",
+        "//third_party/cargo/vendor/bit-set-0.5.2:bit_set",
+        "//third_party/cargo/vendor/crossbeam-channel-0.5.1:crossbeam_channel",
+        "//third_party/cargo/vendor/downcast-rs-1.2.0:downcast_rs",
+        "//third_party/cargo/vendor/erased-serde-0.3.16:erased_serde",
+        "//third_party/cargo/vendor/itertools-0.10.1:itertools",
+        "//third_party/cargo/vendor/parking_lot-0.11.1:parking_lot",
+        "//third_party/cargo/vendor/rayon-1.5.1:rayon",
+        "//third_party/cargo/vendor/scoped-tls-hkt-0.1.2:scoped_tls_hkt",
+        "//third_party/cargo/vendor/serde-1.0.127:serde",
+        "//third_party/cargo/vendor/smallvec-1.6.1:smallvec",
+        "//third_party/cargo/vendor/thiserror-1.0.26:thiserror",
+        "//third_party/cargo/vendor/uuid-0.8.2:uuid",
+    ],
+)
+
+# Unsupported target "codegen" with type "test" omitted
+
+# Unsupported target "query_api" with type "test" omitted
+
+# Unsupported target "systems_basic" with type "test" omitted
+
+# Unsupported target "systems_failures" with type "test" omitted
+
+# Unsupported target "systems_for_each" with type "test" omitted
+
+# Unsupported target "systems_par_for_each" with type "test" omitted
+
+# Unsupported target "world_api" with type "test" omitted
