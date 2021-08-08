@@ -1,0 +1,167 @@
+"""
+@generated
+cargo-raze crate build file.
+
+DO NOT EDIT! Replaced on runs of cargo-raze
+"""
+
+# buildifier: disable=load
+load("@bazel_skylib//lib:selects.bzl", "selects")
+
+# buildifier: disable=load
+load(
+    "@rules_rust//rust:rust.bzl",
+    "rust_binary",
+    "rust_library",
+    "rust_test",
+)
+
+package(default_visibility = [
+    # Public for visibility by "@raze__crate__version//" targets.
+    #
+    # Prefer access through "//third_party/cargo", which limits external
+    # visibility to explicit Cargo.toml dependencies.
+    "//visibility:public",
+])
+
+licenses([
+    "notice",  # Apache-2.0 from expression "Apache-2.0"
+])
+
+# Generated Targets
+
+# Unsupported target "control_flow" with type "example" omitted
+
+# Unsupported target "cursor" with type "example" omitted
+
+# Unsupported target "cursor_grab" with type "example" omitted
+
+# Unsupported target "custom_events" with type "example" omitted
+
+# Unsupported target "fullscreen" with type "example" omitted
+
+# Unsupported target "handling_close" with type "example" omitted
+
+# Unsupported target "min_max_size" with type "example" omitted
+
+# Unsupported target "minimize" with type "example" omitted
+
+# Unsupported target "monitor_list" with type "example" omitted
+
+# Unsupported target "multithreaded" with type "example" omitted
+
+# Unsupported target "multiwindow" with type "example" omitted
+
+# Unsupported target "request_redraw" with type "example" omitted
+
+# Unsupported target "request_redraw_threaded" with type "example" omitted
+
+# Unsupported target "resizable" with type "example" omitted
+
+# Unsupported target "set_ime_position" with type "example" omitted
+
+# Unsupported target "timer" with type "example" omitted
+
+# Unsupported target "transparent" with type "example" omitted
+
+# Unsupported target "video_modes" with type "example" omitted
+
+# Unsupported target "web" with type "example" omitted
+
+# Unsupported target "window" with type "example" omitted
+
+# Unsupported target "window_debug" with type "example" omitted
+
+# Unsupported target "window_icon" with type "example" omitted
+
+# Unsupported target "window_run_return" with type "example" omitted
+
+rust_library(
+    name = "winit",
+    srcs = glob(["**/*.rs"]),
+    aliases = {
+        "@raze__smithay_client_toolkit__0_12_3//:smithay_client_toolkit": "sctk",
+    },
+    crate_features = [
+        "default",
+        "mio",
+        "mio-extras",
+        "parking_lot",
+        "percent-encoding",
+        "sctk",
+        "wayland",
+        "wayland-client",
+        "x11",
+        "x11-dl",
+    ],
+    crate_root = "src/lib.rs",
+    crate_type = "lib",
+    data = [],
+    edition = "2018",
+    rustc_flags = [
+        "--cap-lints=allow",
+    ],
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+    version = "0.24.0",
+    # buildifier: leave-alone
+    deps = [
+        "@raze__bitflags__1_2_1//:bitflags",
+        "@raze__instant__0_1_10//:instant",
+        "@raze__lazy_static__1_4_0//:lazy_static",
+        "@raze__libc__0_2_98//:libc",
+        "@raze__log__0_4_14//:log",
+        "@raze__raw_window_handle__0_3_3//:raw_window_handle",
+    ] + selects.with_or({
+        # cfg(any(target_os = "ios", target_os = "macos"))
+        (
+            "@rules_rust//rust/platform:x86_64-apple-darwin",
+        ): [
+            "@raze__objc__0_2_7//:objc",
+        ],
+        "//conditions:default": [],
+    }) + selects.with_or({
+        # cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))
+        (
+            "@rules_rust//rust/platform:x86_64-unknown-linux-gnu",
+        ): [
+            "@raze__mio__0_6_23//:mio",
+            "@raze__mio_extras__2_0_6//:mio_extras",
+            "@raze__parking_lot__0_11_1//:parking_lot",
+            "@raze__percent_encoding__2_1_0//:percent_encoding",
+            "@raze__smithay_client_toolkit__0_12_3//:smithay_client_toolkit",
+            "@raze__wayland_client__0_28_6//:wayland_client",
+            "@raze__x11_dl__2_18_5//:x11_dl",
+        ],
+        "//conditions:default": [],
+    }) + selects.with_or({
+        # cfg(target_os = "macos")
+        (
+            "@rules_rust//rust/platform:x86_64-apple-darwin",
+        ): [
+            "@raze__cocoa__0_24_0//:cocoa",
+            "@raze__core_foundation__0_9_1//:core_foundation",
+            "@raze__core_graphics__0_22_2//:core_graphics",
+            "@raze__core_video_sys__0_1_4//:core_video_sys",
+            "@raze__dispatch__0_2_0//:dispatch",
+        ],
+        "//conditions:default": [],
+    }) + selects.with_or({
+        # cfg(target_os = "windows")
+        (
+            "@rules_rust//rust/platform:x86_64-pc-windows-msvc",
+        ): [
+            "@raze__parking_lot__0_11_1//:parking_lot",
+            "@raze__winapi__0_3_9//:winapi",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+# Unsupported target "send_objects" with type "test" omitted
+
+# Unsupported target "serde_objects" with type "test" omitted
+
+# Unsupported target "sync_object" with type "test" omitted

@@ -6,20 +6,38 @@ version = "0.0.0"
 [lib]
 path = "fake_lib.rs"
 
+# Dependencies to be made available to bazel rust targets.
+# 
+# Run bazel target `@cargo_raze//:raze` to gegen BUILD files files if you add
+# any more depdenencies.
 [dependencies]
-clap = "=3.0.0-beta.2"
-env_logger = "=0.8.4"
-kdtree = "=0.6.0"
-lazy_static = "=1.4.0"
-legion = "=0.4.0"
-log = "=0.4.14"
-#rendy = "=0.5.1"
-rayon = "=1.5.1"
-rlua = "=0.17.0"
-serde = "=1.0.127"
-serde-diff = "=0.4.1"
-specs = "=0.17.0"
-tokio = "=1.9.0"
+#clap = "3.0.0-beta.2"
+#env_logger = "0.8.4"
+#kdtree = "0.6.0"
+lazy_static = "1.4.0"
+#legion = "0.4.0"
+#log = "0.4.14"
+#rayon = "1.5.1"
+#rendy-core = "0.5.1"
+#rendy-shader = "0.5.1"
+#rlua = "0.17.0"
+#serde = "1.0.127"
+#serde-diff = "0.4.1"
+#specs = "0.17.0"
+#tokio = "1.9.0"
+vulkano = "0.20"
+vulkano-shaders = "0.20"
+winit = "0.24"
+vulkano-win = "0.20"
+cgmath = "0.17"
+png = "0.15.0"
+time = "0.1.38"
+serde = { version="1.0.114", features = ["derive"] }
+ron = "0.6.0"
+
+#[dependencies.rendy]
+#version = "0.5.1"
+#features = ["base", "vulkan", "init-winit", "texture-image", "shader-compiler"]
 
 [package.metadata.raze]
 # The path at which to write output files.
@@ -40,14 +58,46 @@ targets = [
     "x86_64-unknown-linux-gnu",
 ]
 
-# Store dependencies in the src tree.
-genmode = "Vendored"
+# Download dependencies when needed.
+genmode = "Remote"
 
-# Should make crates build by default much easier, at the cost of builds
-# possibly not being hermetic. More info: https://github.com/google/cargo-raze/tree/master#build-scripts-by-default
-default_gen_buildrs = true
+# Making this true would make crates build by default much easier, but at the
+# cost of builds possibly not being hermetic.
+# 
+# More info: https://github.com/google/cargo-raze/tree/master#build-scripts-by-default
+# 
+# Because of that, I'm going to try not enabling it and see how much harder my
+# life gets. Maybe I'll get hermetic builds for free!
+default_gen_buildrs = false
 
-[package.metadata.raze.crates.shaderc-sys.'*']
-additional_deps = [
-    "@//third_party/shaderc:libshaderc",
+[package.metadata.raze.crates.vulkano.'*']
+gen_buildrs = true
+
+[package.metadata.raze.crates.winit.'*']
+gen_buildrs = true
+
+[package.metadata.raze.crates.x11-dl.'*']
+gen_buildrs = true
+
+[package.metadata.raze.crates.wayland-client.'*']
+gen_buildrs = true
+
+[package.metadata.raze.crates.syn.'*']
+additional_flags = [
+    "--cfg=syn_disable_nightly_tests",
 ]
+
+#[package.metadata.raze.crates.shaderc-sys.'*']
+#additional_flags = [
+#    "--cfg=ossl102",
+#    "--cfg=version=102",
+#]
+additional_deps = [
+    "@//third_party/misc/shaderc:libshaderc",
+]
+
+#[package.metadata.raze.crates.shaderc.'*']
+#additional_flags = [
+#    "--cfg=ossl102",
+#    "--cfg=version=102",
+#]

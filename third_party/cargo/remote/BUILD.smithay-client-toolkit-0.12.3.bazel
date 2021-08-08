@@ -1,0 +1,82 @@
+"""
+@generated
+cargo-raze crate build file.
+
+DO NOT EDIT! Replaced on runs of cargo-raze
+"""
+
+# buildifier: disable=load
+load("@bazel_skylib//lib:selects.bzl", "selects")
+
+# buildifier: disable=load
+load(
+    "@rules_rust//rust:rust.bzl",
+    "rust_binary",
+    "rust_library",
+    "rust_test",
+)
+
+package(default_visibility = [
+    # Public for visibility by "@raze__crate__version//" targets.
+    #
+    # Prefer access through "//third_party/cargo", which limits external
+    # visibility to explicit Cargo.toml dependencies.
+    "//visibility:public",
+])
+
+licenses([
+    "notice",  # MIT from expression "MIT"
+])
+
+# Generated Targets
+
+# Unsupported target "compositor_info" with type "example" omitted
+
+# Unsupported target "image_viewer" with type "example" omitted
+
+# Unsupported target "kbd_input" with type "example" omitted
+
+# Unsupported target "layer_shell" with type "example" omitted
+
+# Unsupported target "pointer_input" with type "example" omitted
+
+# Unsupported target "selection" with type "example" omitted
+
+# Unsupported target "themed_frame" with type "example" omitted
+
+rust_library(
+    name = "smithay_client_toolkit",
+    srcs = glob(["**/*.rs"]),
+    crate_features = [
+        "andrew",
+        "calloop",
+        "default",
+        "frames",
+    ],
+    crate_root = "src/lib.rs",
+    crate_type = "lib",
+    data = [],
+    edition = "2018",
+    rustc_flags = [
+        "--cap-lints=allow",
+    ],
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+    version = "0.12.3",
+    # buildifier: leave-alone
+    deps = [
+        "@raze__andrew__0_3_1//:andrew",
+        "@raze__bitflags__1_2_1//:bitflags",
+        "@raze__calloop__0_6_5//:calloop",
+        "@raze__dlib__0_4_2//:dlib",
+        "@raze__lazy_static__1_4_0//:lazy_static",
+        "@raze__log__0_4_14//:log",
+        "@raze__memmap2__0_1_0//:memmap2",
+        "@raze__nix__0_18_0//:nix",
+        "@raze__wayland_client__0_28_6//:wayland_client",
+        "@raze__wayland_cursor__0_28_6//:wayland_cursor",
+        "@raze__wayland_protocols__0_28_6//:wayland_protocols",
+    ],
+)

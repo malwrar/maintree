@@ -6,10 +6,19 @@
 	url = https://github.com/google/effcee.git
 [submodule "third_party/misc/googletest"]
 	path = third_party/misc/googletest
-	url = https://github.com/google/googletest
+	url = https://github.com/google/googletest.git
 [submodule "third_party/misc/re2"]
 	path = third_party/misc/re2
 	url = https://github.com/google/re2.git
 [submodule "third_party/shaderc"]
 	path = third_party/shaderc
 	url = https://github.com/google/shaderc.git
+[submodule "third_party/misc/glslang"]
+	path = third_party/misc/glslang
+	url = https://github.com/KhronosGroup/glslang.git
+[submodule "third_party/misc/shaderc"]
+	path = third_party/misc/shaderc
+	url = https://github.com/google/shaderc.git
+[submodule "third_party/misc/SPIRV-Tools"]
+	path = third_party/misc/SPIRV-Tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools
