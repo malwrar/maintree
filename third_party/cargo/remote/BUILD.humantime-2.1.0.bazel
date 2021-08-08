@@ -25,25 +25,24 @@ package(default_visibility = [
 ])
 
 licenses([
-    "unencumbered",  # Unlicense from expression "Unlicense OR MIT"
+    "notice",  # MIT from expression "MIT OR Apache-2.0"
 ])
 
 # Generated Targets
 
-# Unsupported target "build-script-build" with type "custom-build" omitted
+# Unsupported target "datetime_format" with type "bench" omitted
+
+# Unsupported target "datetime_parse" with type "bench" omitted
 
 rust_library(
-    name = "memchr",
+    name = "humantime",
     srcs = glob(["**/*.rs"]),
     crate_features = [
-        "default",
-        "std",
-        "use_std",
     ],
     crate_root = "src/lib.rs",
     crate_type = "lib",
     data = [],
-    edition = "2015",
+    edition = "2018",
     rustc_flags = [
         "--cap-lints=allow",
     ],
@@ -51,7 +50,7 @@ rust_library(
         "cargo-raze",
         "manual",
     ],
-    version = "2.3.4",
+    version = "2.1.0",
     # buildifier: leave-alone
     deps = [
     ],

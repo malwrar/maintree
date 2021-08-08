@@ -4,6 +4,9 @@ use std::fs::File;
 use std::time::Instant;
 use kdtree::KdTree;
 use kdtree::distance::squared_euclidean;
+use malicious::{
+    parsing::kitti::VelodyneBinParser,
+};
 
 fn main() {
     env_logger::init();
@@ -15,7 +18,7 @@ fn main() {
     let t = Instant::now();
 
     let bin = File::open("/home/sushi/datasets/kitti/dataset/sequences/00/velodyne/000000.bin").unwrap();
-    let points = parsing::kitti::VelodyneBinParser::new(bin);
+    let points = VelodyneBinParser::new(bin);
     for point in points {
         cloud.add([point.0, point.1, point.2], 0);
     }

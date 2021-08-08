@@ -6,7 +6,7 @@ rust_binary(
     "src/main.rs",
   ],
   deps = [
-    "//common/parsing:rust_lib",
+    "//common/rust:malicious",
     "//third_party/cargo:env_logger",
     "//third_party/cargo:kdtree",
     "//third_party/cargo:log",

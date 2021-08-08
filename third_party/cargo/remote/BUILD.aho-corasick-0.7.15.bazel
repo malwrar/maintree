@@ -30,15 +30,12 @@ licenses([
 
 # Generated Targets
 
-# Unsupported target "build-script-build" with type "custom-build" omitted
-
 rust_library(
-    name = "memchr",
+    name = "aho_corasick",
     srcs = glob(["**/*.rs"]),
     crate_features = [
         "default",
         "std",
-        "use_std",
     ],
     crate_root = "src/lib.rs",
     crate_type = "lib",
@@ -51,8 +48,9 @@ rust_library(
         "cargo-raze",
         "manual",
     ],
-    version = "2.3.4",
+    version = "0.7.15",
     # buildifier: leave-alone
     deps = [
+        "@raze__memchr__2_3_4//:memchr",
     ],
 )

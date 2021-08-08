@@ -22,8 +22,35 @@ alias(
 )
 
 alias(
+    name = "env_logger",
+    actual = "@raze__env_logger__0_8_4//:env_logger",
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+)
+
+alias(
+    name = "kdtree",
+    actual = "@raze__kdtree__0_6_0//:kdtree",
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+)
+
+alias(
     name = "lazy_static",
     actual = "@raze__lazy_static__1_4_0//:lazy_static",
+    tags = [
+        "cargo-raze",
+        "manual",
+    ],
+)
+
+alias(
+    name = "log",
+    actual = "@raze__log__0_4_14//:log",
     tags = [
         "cargo-raze",
         "manual",

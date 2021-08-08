@@ -30,20 +30,17 @@ licenses([
 
 # Generated Targets
 
-# Unsupported target "build-script-build" with type "custom-build" omitted
-
 rust_library(
-    name = "memchr",
+    name = "termcolor",
     srcs = glob(["**/*.rs"]),
+    aliases = {
+    },
     crate_features = [
-        "default",
-        "std",
-        "use_std",
     ],
     crate_root = "src/lib.rs",
     crate_type = "lib",
     data = [],
-    edition = "2015",
+    edition = "2018",
     rustc_flags = [
         "--cap-lints=allow",
     ],
@@ -51,8 +48,16 @@ rust_library(
         "cargo-raze",
         "manual",
     ],
-    version = "2.3.4",
+    version = "1.1.2",
     # buildifier: leave-alone
     deps = [
-    ],
+    ] + selects.with_or({
+        # cfg(windows)
+        (
+            "@rules_rust//rust/platform:x86_64-pc-windows-msvc",
+        ): [
+            "@raze__winapi_util__0_1_5//:winapi_util",
+        ],
+        "//conditions:default": [],
+    }),
 )

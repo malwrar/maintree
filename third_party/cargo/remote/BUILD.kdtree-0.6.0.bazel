@@ -25,20 +25,17 @@ package(default_visibility = [
 ])
 
 licenses([
-    "unencumbered",  # Unlicense from expression "Unlicense OR MIT"
+    "notice",  # MIT from expression "MIT OR Apache-2.0"
 ])
 
 # Generated Targets
 
-# Unsupported target "build-script-build" with type "custom-build" omitted
+# Unsupported target "bench" with type "bench" omitted
 
 rust_library(
-    name = "memchr",
+    name = "kdtree",
     srcs = glob(["**/*.rs"]),
     crate_features = [
-        "default",
-        "std",
-        "use_std",
     ],
     crate_root = "src/lib.rs",
     crate_type = "lib",
@@ -51,8 +48,13 @@ rust_library(
         "cargo-raze",
         "manual",
     ],
-    version = "2.3.4",
+    version = "0.6.0",
     # buildifier: leave-alone
     deps = [
+        "@raze__num_traits__0_2_14//:num_traits",
     ],
 )
+
+# Unsupported target "count_dist" with type "test" omitted
+
+# Unsupported target "kdtree" with type "test" omitted
