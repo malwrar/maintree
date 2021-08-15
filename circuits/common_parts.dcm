@@ -1,0 +1,8 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP STM32G030C8T6
+D Arm Cortex-M0+ 32 bit RISC core operating at up to 64MHz, 8kb SRAM, 64kb Flash w/ r/w protection, various peripherals
+F https://datasheet.lcsc.com/lcsc/2005192134_STMicroelectronics-STM32G030C8T6_C529329.pdf
+$ENDCMP
+#
+#End Doc Library
