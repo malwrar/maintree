@@ -30,7 +30,7 @@ _
 (?P<day>\d{2})  # neat compromise between american mm/dd/yyyy and sensible dd/mm/yyyy styles here!
 /
 (?P<nextdir>.+)").unwrap();
-    static ref FILENAME_METADATA_EXTRACTOR: Regex = Regex::new(r"(?x)
+    static ref FILENAME_LOC_AND_TYPE_EXTRACTOR: Regex = Regex::new(r"(?x)
 [\d_/]_drive_
 (?P<drive_number>\d{4})
 _sync/
@@ -38,6 +38,13 @@ _sync/
 /
 (?P<data_path>.*)
 ").unwrap();
+
+    static ref FILENAME_METADATA_EXTRACTOR: Regex = Regex::new(r"(?x)
+data/
+(?P<data_pos>\d+)
+\.(?P<data_format>.*)
+").unwrap();
+
 }
 
 /// Kitti is big, so this interface is an easy way to parse the dataset straight from the zip files
@@ -51,7 +58,7 @@ impl KittiParser {
         // We'll need this later, initialize now since it's cheaper
         for path in dataset_zip_paths {
             let zipfile = std::fs::File::open(&path).unwrap();
-            let archive = zip::ZipArchive::new(zipfile).unwrap();
+            let mut archive = zip::ZipArchive::new(zipfile).unwrap();
 
             for filename in archive.file_names() {
                 // Since the kitti zip files are fairly structured (and probably not going to
@@ -59,6 +66,8 @@ impl KittiParser {
                 // by just inferring datatype from metadata in the filepaths in the zip. It's not
                 // like we can validate the data anyways (I bet you're thinking I could just check
                 // hashes, in which case feel free to submit a PR implementing that!)
+
+                // Start with the date
                 let cap = match FILENAME_DATE_EXTRACTOR.captures(filename) {
                     Some(cap) => cap,
                     None => continue,
@@ -69,7 +78,17 @@ impl KittiParser {
                 let day = &cap["day"];
                 let nextdir = &cap["nextdir"];
 
-                let cap = match FILENAME_METADATA_EXTRACTOR.captures(nextdir) {
+                // Look for the calibration files.
+                if nextdir == "calib_cam_to_cam.txt"
+                        || nextdir == "calib_imu_to_velo.txt"
+                        || nextdir == "calib_velo_to_cam.txt" {
+                    log::debug!("Found calib file {:?}", nextdir);
+                    //let file = archive.by_name(filename);
+                    continue;
+                }
+
+                // Next lets try to get 
+                let cap = match FILENAME_LOC_AND_TYPE_EXTRACTOR.captures(nextdir) {
                     Some(cap) => cap,
                     None => continue,
                 };
@@ -78,13 +97,23 @@ impl KittiParser {
                 let data_type = &cap["data_type"];
                 let data_path = &cap["data_path"];
 
-                println!("{:?} {:?}", data_type, data_path);
+                let cap = match FILENAME_METADATA_EXTRACTOR.captures(nextdir) {
+                    Some(cap) => cap,
+                    None => continue,
+                };
+
+                let data_pos = &cap["data_pos"];
+                let data_format = &cap["data_format"];
+
+                println!("{:?} {:?}", data_pos, data_format);
             }
         }
 
         Self {
         }
     }
+
+    //pub fn frames
 }
 
 //impl Iterator for KittiParser {
