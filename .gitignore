@@ -21,3 +21,6 @@ user.bazelrc
 
 # Ignore the secret directory
 /secret
+
+# Ignore vim sessions
+*.vim
