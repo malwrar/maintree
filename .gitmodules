@@ -22,3 +22,6 @@
 [submodule "third_party/misc/SPIRV-Tools"]
 	path = third_party/misc/SPIRV-Tools
 	url = https://github.com/KhronosGroup/SPIRV-Tools
+[submodule "third_party/bin/waifu2x"]
+	path = third_party/bin/waifu2x
+	url = https://github.com/nagadomi/waifu2x.git

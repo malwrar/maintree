@@ -7,21 +7,35 @@
 #![allow(unused_imports)]
 
 use std::sync::Arc;
+use std::collections::HashSet;
 
-use winit::{EventsLoop, WindowBuilder, dpi::LogicalSize, Event, WindowEvent};
+use winit::{EventsLoop, WindowBuilder, Window, dpi::LogicalSize, Event, WindowEvent};
+use vulkano_win::VkSurfaceBuild;
+
+use priority_queue::PriorityQueue;
 
 use vulkano::instance::{
-    ApplicationInfo,
     Instance,
     InstanceExtensions,
-    PhysicalDevice,
+    ApplicationInfo,
     Version,
     layers_list,
-    debug::{
-        DebugCallback,
-        MessageTypes
-    }
+    PhysicalDevice,
 };
+use vulkano::instance::debug::{DebugCallback, MessageTypes};
+use vulkano::device::{Device, DeviceExtensions, Queue, Features};
+use vulkano::swapchain::{
+    Surface,
+    Capabilities,
+    ColorSpace,
+    SupportedPresentModes,
+    PresentMode,
+    Swapchain,
+    CompositeAlpha,
+};
+use vulkano::format::Format;
+use vulkano::image::{ImageUsage, swapchain::SwapchainImage};
+use vulkano::sync::SharingMode
 
 use vulkano::instance::debug::{};
 
@@ -47,11 +61,11 @@ struct TutorialApp {
 
 impl TutorialApp {
     pub fn new() -> Self {
-        let events_loop = Self::create_vk_window();
-        log::info!("Spawned window.");
-
         let instance = Self::create_vk_instance();
         log::info!("Created VK instance.");
+
+        let (events_loop, surface) = Self::create_vk_surface(&instance);
+        log::info!("Spawned window.");
 
         let debug_callback = Self::setup_vk_debug_callback(&instance);
         log::info!("Installed validation layer debug callback.");
@@ -65,16 +79,6 @@ impl TutorialApp {
             instance,
             physical_device_index,
         }
-    }
-
-    /// Step 0: create the window.
-    fn create_vk_window() -> EventsLoop {
-        let events_loop = EventsLoop::new();
-        let _window = WindowBuilder::new()
-            .with_title("Vulkan")
-            .with_dimensions(LogicalSize::new(f64::from(WIDTH), f64::from(HEIGHT)))
-            .build(&events_loop);
-        events_loop
     }
 
     /// Step 1: create the core vulkan api context container.
@@ -100,7 +104,17 @@ impl TutorialApp {
         }.expect("Failed to create Vulkan instance!")  // NOTE: Instance::new() returns a Result that should be handled the same way in both instances (lol), do so here
     }
 
-    /// Step 2: tell vulkan to yell at me if it thinks i fucked something up.
+    /// Step 2: create the window.
+    fn create_vk_surface(instance: &Arc<Instance>) -> (EventsLoop, Arc<Surface<Window>>) {
+        let events_loop = EventsLoop::new();
+        let _window = WindowBuilder::new()
+            .with_title("Vulkan")
+            .with_dimensions(LogicalSize::new(f64::from(WIDTH), f64::from(HEIGHT)))
+            .build(&events_loop);
+        events_loop
+    }
+
+    /// Step 3: tell vulkan to yell at me if it thinks i fucked something up.
     fn setup_vk_debug_callback(instance: &Arc<Instance>) -> Option<DebugCallback> {
         if !ENABLE_VALIDATION_LAYERS  {
             return None;
@@ -118,11 +132,14 @@ impl TutorialApp {
         }).ok()
     }
 
-    /// Step 3: figure out what lucky gpu gets to process our fancy linear algebra for us
+    /// Step 4: figure out what lucky gpu gets to process our fancy linear algebra for us
     fn pick_vk_physical_device(instance: &Arc<Instance>) -> usize {
-        PhysicalDevice::enumerate(&instance)
-            .position(|device| Self::is_vk_device_suitable(&device))
-            .expect("Failed to find a suitable GPU!")
+        let mut pq = PriorityQueue::new();
+        for candidate in PhysicalDevice::enumerate(&instance) {
+            candidate_score = 0.0f32;
+
+            
+        }
     }
 
     /// Determine if the given PhysicalDevice can do everything we need it to do.
@@ -151,7 +168,6 @@ impl TutorialApp {
 
         idx
     }
-
 
     fn check_vk_validation_layer_support() -> bool {
         let layers: Vec<_> = layers_list().unwrap().map(|l| l.name().to_owned()).collect();

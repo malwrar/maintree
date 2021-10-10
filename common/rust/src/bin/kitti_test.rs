@@ -1,5 +1,5 @@
 use malicious::{
-    parsing::kitti::KittiParser,
+    datasets::kitti::KittiParser,
 };
 
 fn main() {
@@ -17,4 +17,15 @@ fn main() {
             //"../../../../datasets/kitti/2011_09_29_drive_0004_extract.zip",
             "../../../../datasets/kitti/2011_09_29_drive_0004_sync.zip",
         ]);
+
+    for sequence in parser.sequences() {
+        for frame in sequence.frames() {
+            let pointcloud = match frame.lidar() {
+                Some(data) => data,
+                None => panic!("No lidar data in frame!");
+            };
+
+            log::info!("Frame {} contains {} points.", pointcloud.len())
+        }
+    }
 }

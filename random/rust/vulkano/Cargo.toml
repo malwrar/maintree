@@ -13,12 +13,13 @@ lazy_static = "1.4"
 log = "0.4.0"
 png = "0.15.0"
 ron = "0.6.0"
-serde = { version="1.0.114", features = ["derive"] }
+serde = { version = "1.0.114", features = ["derive"] }
 time = "0.1.38"
 vulkano = "0.11.1"
 vulkano-shaders = "0.11.1"
 vulkano-win = "0.11.1"
 winit = "0.18.0"
+priority-queue = "1.2.0"
 
 #[dependencies.malicious]
 #path = "../../../common/rust/"
