@@ -1,5 +1,5 @@
 [package]
-name = "wgpu"
+name = "wgpu-sandbox"
 version = "0.1.0"
 edition = "2018"
 resolver = "2"  # required by wgpu, see https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#using-rust-s-new-resolver
