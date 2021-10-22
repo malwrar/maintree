@@ -12,3 +12,8 @@ log = "0.4.0"
 regex = "1.5"
 zip = "0.5"
 nalgebra = "0.29.0"
+
+# https://github.com/flamegraph-rs/flamegraph stuff
+[target.x86_64-unknown-linux-gnu]
+linker = "/usr/bin/clang"
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment"]
