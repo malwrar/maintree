@@ -339,7 +339,8 @@ impl Object for Thingy {
 
 fn main() {
     env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("less_fuss", log::LevelFilter::Debug)
         .init();
 
     log::info!("Starting up...");
@@ -386,7 +387,6 @@ fn main() {
                 }
             }
             Event::RedrawRequested(_) => {
-                log::debug!("RedrawRequested");
                 match surface.render() {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => surface.reconfigure(),
