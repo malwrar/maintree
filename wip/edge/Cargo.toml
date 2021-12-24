@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4.6"         #
-env_logger = "0.6.1"  #
-wgpu = "0.11.0"       #
-legion = "0.4.0"      # Allegedly good at taking advantage of CPU cache!
-                      # (TODO: test this)
-petgraph = "0.6.0"    # Describing high-level render operations as a graph then
-                      # optimizing concurrent execution sounds like a good idea,
-                      # right?  Check src/bin/idea_graph.rs to find out...
+log = "0.4.6"
+env_logger = "0.6.1"
+lazy_static = "1.4"
+nalgebra = "0.29.0"
+petgraph = "0.6.0"
+bytemuck = { version = "1.4", features = [ "derive" ] }
+wgpu = "0.11.0"
+winit = "0.25"
