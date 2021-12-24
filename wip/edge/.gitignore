@@ -13,6 +13,7 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
-# This likely can be deleted later -- one of the libs I'm working with right now
-# generates svg files and I'd like to avoid committing them.
+# Ignore graphviz stuff
 *.svg
+*.jpeg
+*.dot
