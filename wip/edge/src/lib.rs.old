@@ -1,0 +1,127 @@
+//! Not sure where this text actually ends up in docs... testing.
+
+extern crate nalgebra as na;
+extern crate petgraph;
+extern crate wgpu;
+extern crate winit;
+
+use na::Vector3;
+use petgraph::Graph;
+use winit::{
+    dpi::PhysicalSize,
+    //event::*,
+    event_loop::EventLoop,
+    window::{Window, WindowBuilder},
+};
+
+static ROOT_ID: &str = "world";  // https://youtu.be/IJisy5C6Ox0
+
+/// Collection of normalized vertices.
+pub struct Mesh {
+    pub vertices: Vec<(f32, f32, f32)>,
+    pub indices: Option<Vec<u32>>,
+}
+
+impl Mesh {
+    fn invisible() -> Self {
+        Self {
+            vertices: Vec::new(),
+            indices: None,
+        }
+    }
+}
+
+/// Thing that can be rendered by a `Renderer`.
+pub trait Renderable {
+    fn geometry(&self) -> Mesh {
+        Mesh::invisible()
+    }
+}
+
+/// Thing we want to render.
+#[derive(Debug)]
+struct Triangle {}
+
+impl Renderable for Triangle {
+    fn geometry(&self) -> Mesh {
+        Mesh {
+            vertices: vec![
+                (0.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+            ],
+            indices: Some(vec![
+                1, 2, 3,
+            ]),
+        }
+    }
+}
+
+struct Instance {
+
+}
+
+impl Instance {
+    fn offset
+}
+
+/// Collection of `Renderable`s arranged in a graph structure.
+pub struct Scene<T> {
+    pub graph: Graph<T, Instance>,
+    pub renderables: 
+}
+
+impl<T> Scene<T> where T: Renderable {
+    pub fn new() -> Self {
+        let mut graph = Graph::<String, Option<T>>::new();
+        let root_node = graph.add_node(String::from(ROOT_ID));
+        let blah1 = graph.add_node(String::from("triangle"));
+        graph.add_edge(root_node, blah1, None);
+
+        let blah2 = graph.add_node(String::from("car"));
+        graph.add_edge(root_node, blah2, None);
+
+        Self {
+            graph 
+            //root_node,
+        }
+    }
+
+    pub fn add_renderable(
+        &self,
+        group: &str,
+        renderable: T,
+    ) {
+    }
+}
+
+//struct Renderer<T: Renderable> {
+//    pub scene: Scene,
+//}
+//
+//impl<T: Renderable> for Renderer<T>  {
+//    /// 
+//    pub fn window(title: &str, width: u32, height: u32) -> (Self, EventLoop, Window {
+//        let event_loop = EventLoop::new();
+//        let window = WindowBuilder::new()
+//            .with_inner_size(PhysicalSize::new(960, 640))
+//            .with_resizable(false)
+//            .with_title("Test")
+//            .with_decorations(true)
+//            .build(&event_loop)
+//            .unwrap();
+//
+//        (
+//            Renderer {
+//                scene: Scene::new(),
+//            },
+//            window,
+//            event_loop,
+//        )
+//    }
+//
+//    /// Remove all objects in the current scene that are invisible.
+//    fn prune_invisible(&self) {
+//
+//    }
+//}
