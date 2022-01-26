@@ -6,25 +6,25 @@ fn hello_world() {
     println!("Hello world.");
 }
 
-fn extract_dataset() {
-    let mut path = home::home_dir().unwrap();
-    path.push("Datasets/kitti/raw/");
-
-    let dataset = kitti::RawDatasetExtractor::new(path);
-    //let frames = dataset.frames().collect::<Vec<kitti::RawDatasetFrame>>();
-    for frame in dataset.frames() {
-        println!("{:?}", frame);
-    }
-}
-
 fn main() {
     App::new()
         //.insert_resource(Msaa { samples: 4 })
         //.add_plugins(DefaultPlugins)
         .add_startup_system(hello_world)
-        .add_startup_system(extract_dataset)
+        .add_startup_system(setup_dataset)
         //.add_startup_system(setup)
         .run();
+}
+
+fn setup_dataset() {
+    let mut path = home::home_dir().unwrap();
+    path.push("Datasets/kitti/raw/");
+
+    let dataset = kitti::RawDatasetExtractor::new(path);
+    let frames = dataset.frames().collect::<Vec<kitti::RawDatasetFrame>>();
+    for frame in frames {
+        println!("{:?}", frame);
+    }
 }
 
 fn setup(
