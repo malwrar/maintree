@@ -161,8 +161,8 @@ use zip::read::{ZipArchive, ZipFile};
 
 #[derive(Debug)]
 pub struct RawDatasetFrame {
-    timestamp: DateTime<Utc>,
-    image: PathBuf,
+    pub timestamp: DateTime<Utc>,
+    pub image: PathBuf,
 }
 
 pub struct RawDatasetExtractor {
