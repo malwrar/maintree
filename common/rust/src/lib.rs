@@ -9,4 +9,5 @@
 //! 
 //! Enter `malicious`, my collection of useful doodads that may be of use!
 
+pub mod bevy;
 pub mod kitti;

@@ -168,6 +168,7 @@ pub struct RawDatasetFrame {
 pub struct RawDatasetExtractor {
     timestamps: Vec<DateTime<Utc>>,
     images: Vec<PathBuf>,
+    points: Vec<PathBuf>,
 }
 
 impl RawDatasetExtractor {
@@ -194,9 +195,17 @@ impl RawDatasetExtractor {
             .map(|res| res.map(|e| e.path()).unwrap())
             .collect();
 
+        let mut points_dir = base_path.clone();
+        points_dir.push("velodyne_points/data");
+
+        let points = fs::read_dir(points_dir).unwrap()
+            .map(|res| res.map(|e| e.path()).unwrap())
+            .collect();
+
         Self {
             timestamps,
             images,
+            points,
         }
     }
 
