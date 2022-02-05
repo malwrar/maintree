@@ -71,10 +71,9 @@ fn genmesh() -> Mesh {
     let positions = vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]];
     let normals = vec![[0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 1.0]];
     let uvs = vec![[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]];
-    let indices = Indices::U32(vec![0, 1, 2]);
 
     let mut mesh = Mesh::new(PrimitiveTopology::PointList);
-    mesh.set_indices(Some(indices));
+    mesh.set_indices(None);
     mesh.set_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.set_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.set_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
