@@ -14,7 +14,8 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_startup_system(spawn_camera)
-            .add_system(pan_orbit_camera);
+            .add_system(pan_orbit_camera)
+            .add_system(keyboard_input);
     }
 }
 
@@ -128,7 +129,7 @@ fn get_primary_window_size(windows: &Res<Windows>) -> Vec2 {
 
 /// Spawn a camera like this
 fn spawn_camera(mut commands: Commands) {
-    let translation = Vec3::new(-2.0, 2.5, 5.0);
+    let translation = Vec3::new(-0.0, -1.0, -1.0);
     let radius = translation.length();
 
     commands.spawn_bundle(PerspectiveCameraBundle {
@@ -139,4 +140,18 @@ fn spawn_camera(mut commands: Commands) {
         radius,
         ..Default::default()
     });
+}
+
+fn keyboard_input(
+    keys: Res<Input<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        // Space was pressed
+    }
+    if keys.just_released(KeyCode::LControl) {
+        // Left Ctrl was released
+    }
+    if keys.pressed(KeyCode::W) {
+        // W is being held down
+    }
 }
