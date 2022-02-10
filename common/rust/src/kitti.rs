@@ -13,12 +13,15 @@
 use chrono::prelude::*;
 
 use std::cmp::Ordering;
+use std::convert::AsRef;
 use std::convert::TryInto;
 use std::io::{BufReader, BufRead};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs;
 use std::io;
 
+use image;
+use image::{GenericImageView, Pixel};
 use nalgebra as na;
 use regex::Regex;
 use zip::read::{ZipArchive, ZipFile};
@@ -158,6 +161,51 @@ use zip::read::{ZipArchive, ZipFile};
             //})
     //}
 //}
+
+pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> na::OMatrix<f32, na::Dynamic, na::Dynamic> {
+    let img = image::open(source)
+        .unwrap()
+        .to_luma8();
+
+    let (width, height) = img.dimensions();
+
+    let pixels = img
+        .enumerate_pixels()
+        .map(|(_, _, pixel)| (*pixel).channels()[0] as f32 / std::u8::MAX as f32)
+        .collect::<Vec<f32>>();
+
+    let matrix = na::DMatrix::from_row_slice(
+        height.try_into().unwrap(),
+        width.try_into().unwrap(),
+        pixels.as_slice());
+
+    matrix
+}
+
+pub fn parse_raw_velodyne<S: Into<String> + AsRef<Path>>(source: S) -> Vec<na::Vector3<f32>> {
+    let mut f = fs::File::open(source).unwrap();
+    parse_raw_velodyne_buf(&mut f)
+}
+
+pub fn parse_raw_velodyne_buf<T: io::Read>(source: &mut T) -> Vec<na::Vector3<f32>> {
+    let mut points = Vec::new();
+
+    loop {
+        let mut chunk = [0u8; 16];
+        if source.read(&mut chunk).unwrap() < 16 {
+            break;
+        }
+
+        let x = f32::from_ne_bytes(chunk[0..4].try_into().unwrap());
+        let y = f32::from_ne_bytes(chunk[4..8].try_into().unwrap());
+        let z = f32::from_ne_bytes(chunk[8..12].try_into().unwrap());
+        let _ = f32::from_ne_bytes(chunk[12..16].try_into().unwrap());
+
+        points.push(na::Vector3::new(x, y, z));
+    }
+
+    points
+}
 
 #[derive(Debug)]
 pub struct RawDatasetFrame {
