@@ -10,20 +10,19 @@
 //!   booktitle = {Conference on Computer Vision and Pattern Recognition (CVPR)},
 //!   year = {2012}
 
-use chrono::prelude::*;
-
 use std::cmp::Ordering;
-use std::convert::AsRef;
-use std::convert::TryInto;
-use std::io::{BufReader, BufRead};
+use std::convert::{TryInto, AsRef};
+use std::io::{self, Read, BufReader, BufRead};
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io;
 
-use image;
-use image::{GenericImageView, Pixel};
+use chrono::prelude::*;
+
+use image::{self, GenericImageView, Pixel};
 use nalgebra as na;
+use quick_xml;
 use regex::Regex;
+use serde::Deserialize;
 use zip::read::{ZipArchive, ZipFile};
 
 //lazy_static::lazy_static! {
@@ -161,6 +160,62 @@ use zip::read::{ZipArchive, ZipFile};
             //})
     //}
 //}
+
+#[derive(Debug, Deserialize)]
+pub struct Pose {
+    tx: f32,
+    ty: f32,
+    tz: f32,
+    rx: f32,
+    ry: f32,
+    rz: f32,
+    state: i32,
+    occlusion: f32,
+    occlusion_kf: f32,
+    truncation: i32,
+    amt_occlusion: f32,
+    amt_occlusion_kf: f32,
+    amt_border_l: f32,
+    amt_border_r: f32,
+    amt_border_kf: f32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Poses {
+    count: usize,
+    item: Vec<Pose>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Object {
+    objectType: String,
+    h: f32,
+    w: f32,
+    l: f32,
+    first_frame: usize,
+    poses: Poses,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Tracklets {
+    count: usize,
+    item: Vec<Object>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Document {
+    tracklets: Tracklets,
+}
+
+pub fn parse_raw_tracklets<S: Into<String> + AsRef<Path>>(source: S) -> Document {
+    let mut tracklet_data = String::new();
+    let f = fs::File::open(source)
+        .unwrap()
+        .read_to_string(&mut tracklet_data)
+        .unwrap();
+        
+    quick_xml::de::from_str(&tracklet_data).unwrap()
+}
 
 pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> na::OMatrix<f32, na::Dynamic, na::Dynamic> {
     let img = image::open(source)

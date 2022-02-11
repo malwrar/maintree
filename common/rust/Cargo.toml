@@ -14,9 +14,11 @@ image = "0.24.0"
 itertools = "0.8"
 lazy_static = "1.4"
 log = "0.4.0"
-regex = "1.5"
-zip = "0.5"
 nalgebra = "0.29.0"
+regex = "1.5"
+serde = { version = "1.0", features = [ "derive" ] }
+quick-xml = { version = "0.21", features = [ "serialize" ] }
+zip = "0.5"
 
 # https://github.com/flamegraph-rs/flamegraph stuff
 [target.x86_64-unknown-linux-gnu]

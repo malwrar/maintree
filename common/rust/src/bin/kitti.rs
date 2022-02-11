@@ -19,4 +19,7 @@ fn main() {
 
     //let image = kitti::parse_raw_image("/home/sushi/Datasets/kitti/raw/image_00/data/0000000000.png");
     //println!("{:?}", image);
+
+    //let tracklets = kitti::parse_raw_tracklets("/home/sushi/Datasets/kitti/raw/tracklet_labels.xml");
+    //println!("{:?}", tracklets);
 }
