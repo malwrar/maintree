@@ -22,4 +22,13 @@ fn main() {
 
     //let tracklets = kitti::parse_raw_tracklets("/home/sushi/Datasets/kitti/raw/tracklet_labels.xml");
     //println!("{:?}", tracklets);
+
+    //kitti::parse_raw_calib(
+    //    "/home/sushi/Datasets/kitti/raw/calib_imu_to_velo.txt",
+    //    "/home/sushi/Datasets/kitti/raw/calib_cam_to_cam.txt",
+    //    "/home/sushi/Datasets/kitti/raw/calib_velo_to_cam.txt");
+
+    println!("{:?}", kitti::parse_raw_timestamps("/home/sushi/Datasets/kitti/raw/image_00/timestamps.txt"));
+
+    println!("{:?}", kitti::parse_raw_oxt("/home/sushi/Datasets/kitti/raw/oxts/data/0000000000.txt"));
 }
