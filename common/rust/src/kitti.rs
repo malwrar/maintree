@@ -10,7 +10,7 @@
 //!   booktitle = {Conference on Computer Vision and Pattern Recognition (CVPR)},
 //!   year = {2012}
 
-use std::collections::HashMap;
+use std::collections::{BinaryHeap, HashMap};
 use std::convert::{TryInto, AsRef};
 use std::io::{self, Read, BufReader, BufRead};
 use std::path::{Path, PathBuf};
@@ -79,7 +79,9 @@ pub fn parse_raw_tracklets<S: Into<String> + AsRef<Path>>(source: S) -> Document
     quick_xml::de::from_str(&tracklet_data).unwrap()
 }
 
-pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> na::OMatrix<f32, na::Dynamic, na::Dynamic> {
+type ImageMatrix = na::OMatrix<f32, na::Dynamic, na::Dynamic>;
+
+pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> ImageMatrix {
     let img = image::open(source)
         .unwrap()
         .to_luma8();
@@ -165,6 +167,53 @@ fn parse_raw_calib_file_pairs<S: Into<String> + AsRef<Path>>(
 }
 
 #[derive(Debug)]
+pub struct ImageFrame {
+    pub timestamp: DateTime<Utc>,
+    pub image:     ImageMatrix,
+}
+
+pub fn parse_raw_images_dir<'a>(
+    base_path: String,
+) -> impl Iterator<Item = ImageFrame> {
+    let timestamps = parse_raw_timestamps(base_path.clone() + "/timestamps.txt");
+
+    // Parse data and insert it into the currently empty `data` vector.
+    let mut map = fs::read_dir(base_path + "/data")
+        .unwrap()
+        .zip(timestamps)
+        .map(|(path, timestamp)| {
+            let path = path
+                .unwrap()
+                .path();
+
+            let idx = path
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .parse::<usize>().unwrap();
+
+            let path = path
+                .to_str()
+                .unwrap();
+
+            (idx, timestamp, String::from(path))
+        })
+        .collect::<Vec<(usize, DateTime<Utc>, String)>>();
+
+    map.sort_by(|a, b| a.0.cmp(&b.0));
+
+    map
+        .into_iter()
+        .map(|(_, timestamp, path)| {
+            ImageFrame {
+                timestamp,
+                image: parse_raw_image(path),
+            }
+        })
+}
+
+#[derive(Debug)]
 pub struct VelodyneFrame {
     pub timestamp: DateTime<Utc>,
     pub start:     DateTime<Utc>,
@@ -223,7 +272,6 @@ pub fn parse_raw_velodyne_dir(
             capture.data = parse_raw_velodyne(path);
             capture
         })
-
 }
 
 pub struct CalibrationParams {

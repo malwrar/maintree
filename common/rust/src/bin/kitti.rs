@@ -51,10 +51,18 @@ fn main() {
 
     println!("{:?}", raw_dataset);
     */
-    
-    let total_points = kitti::parse_raw_velodyne_dir("/home/sushi/Datasets/kitti/raw/velodyne_points".to_string())
-        .fold(0, |acc, x| acc + x.data.len());
 
-    println!("total points:      {}", total_points);
-    println!("approx mem needed: {}", ByteSize((total_points * std::mem::size_of::<na::Vector3<f32>>()) as u64));
+    //let total_points = kitti::parse_raw_velodyne_dir("/home/sushi/Datasets/kitti/raw/velodyne_points".to_string())
+    //    .fold(0, |acc, x| acc + x.data.len());
+
+    //println!("total points:      {}", total_points);
+    //println!("approx mem needed: {}", ByteSize((total_points * std::mem::size_of::<na::Vector3<f32>>()) as u64));
+
+    let images = kitti::parse_raw_images_dir("/home/sushi/Datasets/kitti/raw/image_00".to_string())
+        .zip(kitti::parse_raw_images_dir("/home/sushi/Datasets/kitti/raw/image_01".to_string()))
+        .zip(kitti::parse_raw_images_dir("/home/sushi/Datasets/kitti/raw/image_02".to_string()))
+        .zip(kitti::parse_raw_images_dir("/home/sushi/Datasets/kitti/raw/image_03".to_string()));
+    for (i, (((image_00, image_01), image_02), image_03)) in images.enumerate() {
+        println!("{} {:?} {:?} {:?} {:?}", i, image_00, image_01, image_02, image_03);
+    }
 }
