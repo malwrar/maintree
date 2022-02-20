@@ -69,9 +69,9 @@ pub struct Document {
     tracklets: Tracklets,
 }
 
-pub fn parse_raw_tracklets<S: Into<String> + AsRef<Path>>(source: S) -> Document {
+pub fn parse_raw_tracklets(source_path: PathBuf) -> Document {
     let mut tracklet_data = String::new();
-    let f = fs::File::open(source)
+    let f = fs::File::open(source_path)
         .unwrap()
         .read_to_string(&mut tracklet_data)
         .unwrap();
@@ -81,8 +81,10 @@ pub fn parse_raw_tracklets<S: Into<String> + AsRef<Path>>(source: S) -> Document
 
 type ImageMatrix = na::OMatrix<f32, na::Dynamic, na::Dynamic>;
 
-pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> ImageMatrix {
-    let img = image::open(source)
+pub fn parse_raw_image(
+    source_path: PathBuf
+) -> ImageMatrix {
+    let img = image::open(source_path)
         .unwrap()
         .to_luma8();
 
@@ -101,8 +103,10 @@ pub fn parse_raw_image<S: Into<String> + AsRef<Path>>(source: S) -> ImageMatrix 
     matrix
 }
 
-pub fn parse_raw_velodyne<S: Into<String> + AsRef<Path>>(source: S) -> Vec<na::Vector3<f32>> {
-    let mut f = fs::File::open(source).unwrap();
+pub fn parse_raw_velodyne(
+    source_path: PathBuf
+) -> Vec<na::Vector3<f32>> {
+    let mut f = fs::File::open(source_path).unwrap();
     parse_raw_velodyne_buf(&mut f)
 }
 
@@ -126,12 +130,12 @@ pub fn parse_raw_velodyne_buf<T: io::Read>(source: &mut T) -> Vec<na::Vector3<f3
     points
 }
 
-fn parse_raw_calib_file_pairs<S: Into<String> + AsRef<Path>>(
-    source: S
+fn parse_raw_calib_file_pairs(
+    calib_path: PathBuf
 ) -> (DateTime<Utc>, Vec<(String, Vec<f64>)>) {
     let mut timestamp = Utc::now();
 
-    let f = fs::File::open(source).unwrap();
+    let f = fs::File::open(calib_path).unwrap();
     let data = BufReader::new(f)
         .lines()
         .filter_map(|line| {
@@ -173,12 +177,12 @@ pub struct ImageFrame {
 }
 
 pub fn parse_raw_images_dir<'a>(
-    base_path: String,
+    base_path: PathBuf,
 ) -> impl Iterator<Item = ImageFrame> {
-    let timestamps = parse_raw_timestamps(base_path.clone() + "/timestamps.txt");
+    let timestamps = parse_raw_timestamps(base_path.join("timestamps.txt"));
 
     // Parse data and insert it into the currently empty `data` vector.
-    let mut map = fs::read_dir(base_path + "/data")
+    let mut map = fs::read_dir(base_path.join("data"))
         .unwrap()
         .zip(timestamps)
         .map(|(path, timestamp)| {
@@ -197,9 +201,9 @@ pub fn parse_raw_images_dir<'a>(
                 .to_str()
                 .unwrap();
 
-            (idx, timestamp, String::from(path))
+            (idx, timestamp, PathBuf::from(path))
         })
-        .collect::<Vec<(usize, DateTime<Utc>, String)>>();
+        .collect::<Vec<(usize, DateTime<Utc>, PathBuf)>>();
 
     map.sort_by(|a, b| a.0.cmp(&b.0));
 
@@ -222,34 +226,20 @@ pub struct VelodyneFrame {
 }
 
 pub fn parse_raw_velodyne_dir(
-    base_path: String,
+    base_path: PathBuf,
 ) -> impl Iterator<Item = VelodyneFrame> {
-    let mut captures: HashMap<usize, VelodyneFrame> = HashMap::new();
-
     // Initiate `captures` with timestamps.
-    let timestamps_start = parse_raw_timestamps(base_path.clone() + "/timestamps_start.txt");
-    let timestamps_end   = parse_raw_timestamps(base_path.clone() + "/timestamps_end.txt");
-    let timestamps       = parse_raw_timestamps(base_path.clone() + "/timestamps.txt");
-
-    timestamps_start
-        .iter()
-        .zip(timestamps_end.iter())
-        .zip(timestamps.iter())
-        .enumerate()
-        .for_each(|(idx, ((start, end), timestamp))| {
-            let frame = VelodyneFrame {
-                timestamp: *timestamp,
-                start: *start,
-                end: *end,
-                data: Vec::new(),
-            };
-            captures.insert(idx, frame);
-        });
+    let timestamps_start = parse_raw_timestamps(base_path.join("timestamps_start.txt"));
+    let timestamps_end   = parse_raw_timestamps(base_path.join("timestamps_end.txt"));
+    let timestamps       = parse_raw_timestamps(base_path.join("timestamps.txt"));
 
     // Parse data and insert it into the currently empty `data` vector.
-    fs::read_dir(base_path + "/data")
+    let mut map = fs::read_dir(base_path.join("data"))
         .unwrap()
-        .map(move |path| {
+        .zip(timestamps)
+        .zip(timestamps_start)
+        .zip(timestamps_end)
+        .map(|(((path, timestamp), start), end)| {
             let path = path
                 .unwrap()
                 .path();
@@ -265,12 +255,21 @@ pub fn parse_raw_velodyne_dir(
                 .to_str()
                 .unwrap();
 
-            let mut capture = captures
-                .remove(&idx)
-                .unwrap();
+            (idx, timestamp, start, end, PathBuf::from(path))
+        })
+        .collect::<Vec<(usize, DateTime<Utc>, DateTime<Utc>, DateTime<Utc>, PathBuf)>>();
 
-            capture.data = parse_raw_velodyne(path);
-            capture
+    map.sort_by(|a, b| a.0.cmp(&b.0));
+
+    map
+        .into_iter()
+        .map(|(_, timestamp, start, end, path)| {
+            VelodyneFrame {
+                timestamp,
+                start,
+                end,
+                data: parse_raw_velodyne(path)
+            }
         })
 }
 
@@ -278,10 +277,10 @@ pub struct CalibrationParams {
 
 }
 
-pub fn parse_raw_calib<S: Into<String> + AsRef<Path>>(
-    imu_to_velo_path: S,
-    cam_to_cam_path: S,
-    velo_to_cam_path: S,
+pub fn parse_raw_calib(
+    imu_to_velo_path: PathBuf,
+    cam_to_cam_path: PathBuf,
+    velo_to_cam_path: PathBuf,
 ) -> CalibrationParams {
     let mut pairs = Vec::new();
     pairs.extend(parse_raw_calib_file_pairs(imu_to_velo_path).1);
@@ -294,8 +293,8 @@ pub fn parse_raw_calib<S: Into<String> + AsRef<Path>>(
     CalibrationParams {}
 }
 
-pub fn parse_raw_timestamps<S: Into<String> + AsRef<Path>>(
-    timestamps_path: S,
+pub fn parse_raw_timestamps(
+    timestamps_path: PathBuf,
 ) -> Vec<DateTime<Utc>> {
     let f = fs::File::open(timestamps_path).unwrap();
     BufReader::new(f)
@@ -338,9 +337,7 @@ pub struct Oxt {
     orimode: f64,  // orientation mode of primary GPS receiver (see gps_mode_to_string)
 }
 
-pub fn parse_raw_oxt<S: Into<String> + AsRef<Path>>(
-    oxt_path: S,
-) -> Oxt {
+pub fn parse_raw_oxt(oxt_path: PathBuf) -> Oxt {
     let f = fs::File::open(oxt_path).unwrap();
     BufReader::new(f)
         .lines()
@@ -391,4 +388,83 @@ pub fn parse_raw_oxt<S: Into<String> + AsRef<Path>>(
         })
         .last()  // There really should only be one
         .unwrap()
+}
+
+#[derive(Debug)]
+pub struct OxtFrame {
+    pub timestamp: DateTime<Utc>,
+    pub oxt:       Oxt,
+}
+
+pub fn parse_raw_oxt_dir(
+    base_path: PathBuf,
+) -> impl Iterator<Item = OxtFrame> {
+    let timestamps = parse_raw_timestamps(base_path.join("timestamps.txt"));
+
+    // Parse data and insert it into the currently empty `data` vector.
+    let mut map = fs::read_dir(base_path.join("data"))
+        .unwrap()
+        .zip(timestamps)
+        .map(|(path, timestamp)| {
+            let path = path
+                .unwrap()
+                .path();
+
+            let idx = path
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .parse::<usize>().unwrap();
+
+            let path = path
+                .to_str()
+                .unwrap();
+
+            (idx, timestamp, PathBuf::from(path))
+        })
+        .collect::<Vec<(usize, DateTime<Utc>, PathBuf)>>();
+
+    map.sort_by(|a, b| a.0.cmp(&b.0));
+
+    map
+        .into_iter()
+        .map(|(_, timestamp, path)| {
+            OxtFrame {
+                timestamp,
+                oxt: parse_raw_oxt(path),
+            }
+        })
+}
+
+#[derive(Debug)]
+pub struct Frame {
+    oxt: OxtFrame,
+    velodyne: VelodyneFrame,
+    image_00: ImageFrame,
+    image_01: ImageFrame,
+    image_02: ImageFrame,
+    image_03: ImageFrame,
+}
+
+pub fn parse_raw(
+    base_path: String,
+) -> impl Iterator<Item = Frame> {
+    let base_path = Path::new(&base_path);
+    parse_raw_oxt_dir(base_path.join("oxts/"))
+        .zip(parse_raw_velodyne_dir(base_path.join("velodyne_points/")))
+        .zip(parse_raw_images_dir(base_path.join("image_00/")))
+        .zip(parse_raw_images_dir(base_path.join("image_01/")))
+        .zip(parse_raw_images_dir(base_path.join("image_02/")))
+        .zip(parse_raw_images_dir(base_path.join("image_03/")))
+        .map(|(((((oxt, velodyne), image_00), image_01), image_02), image_03)| {
+            Frame {
+                oxt,
+                velodyne,
+                image_00,
+                image_01,
+                image_02,
+                image_03,
+            }
+        })
 }
