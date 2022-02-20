@@ -1,10 +1,3 @@
-use std::env;
-use std::fs;
-use std::io::{BufReader, BufRead};
-
-use bytesize::ByteSize;
-use nalgebra as na;
-
 use malicious::kitti;
 
 fn main() {
@@ -18,7 +11,8 @@ fn main() {
     log::error!("Starting up...");
 
     kitti::parse_raw("/home/sushi/Datasets/kitti/raw/".to_string())
-        .for_each(|x| {
-            println!("{:?}", x);
+        .enumerate()
+        .for_each(|(i, frame)| { 
+            println!("{:03}: {:?}", i, frame.velodyne.data.len());
         })
 }

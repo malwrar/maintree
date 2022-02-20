@@ -439,12 +439,12 @@ pub fn parse_raw_oxt_dir(
 
 #[derive(Debug)]
 pub struct Frame {
-    oxt: OxtFrame,
-    velodyne: VelodyneFrame,
-    image_00: ImageFrame,
-    image_01: ImageFrame,
-    image_02: ImageFrame,
-    image_03: ImageFrame,
+    pub oxt: OxtFrame,
+    pub velodyne: VelodyneFrame,
+    pub image_00: ImageFrame,
+    pub image_01: ImageFrame,
+    pub image_02: ImageFrame,
+    pub image_03: ImageFrame,
 }
 
 pub fn parse_raw(
