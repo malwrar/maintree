@@ -18,6 +18,8 @@ use malicious::{
 
 fn genmesh() -> Mesh {
     let points = kitti::parse_raw_velodyne(PathBuf::from("/home/sushi/Datasets/kitti/raw/velodyne_points/data/0000000000.bin"));
+    //let points = kitti::parse_raw_velodyne_dir(PathBuf::from("/home/sushi/Datasets/kitti/raw/velodyne_points"))
+    //    .fold(Vec::new(), |mut acc, item| { acc.extend(item.data); acc });
 
     let positions = points
         .iter()
@@ -47,14 +49,12 @@ fn setup_points(
     mut pointcloud_config: ResMut<PointCloudConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    pointcloud_config.global = false;
+    log::info!("Starting up...");
+    log::warn!("Starting up...");
+    log::debug!("Starting up...");
+    log::error!("Starting up...");
 
-    // plane
-    commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        ..Default::default()
-    });
+    pointcloud_config.global = false;
 
     // textured quad - normal
     commands
@@ -79,21 +79,12 @@ fn setup_points(
 
     // camera
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 30.5, -50.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(0.0, 0.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
 }
 
 fn main() {
-    //env_logger::Builder::from_default_env()
-    //    .filter_level(log::LevelFilter::Debug)
-    //    .init();
-
-    //log::info!("Starting up...");
-    //log::warn!("Starting up...");
-    //log::debug!("Starting up...");
-    //log::error!("Starting up...");
-
     App::new()
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WgpuOptions {
