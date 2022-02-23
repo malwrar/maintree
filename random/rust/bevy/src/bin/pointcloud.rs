@@ -15,6 +15,25 @@ use malicious::{
     bevy::pointcloud::{PointCloud, PointCloudConfig, PointCloudPlugin},
     kitti,
 };
+use smooth_bevy_cameras::{
+    controllers::orbit::{OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin},
+    LookTransformPlugin,
+};
+
+fn setup_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    log::info!("Setting up camera...");
+
+    commands.spawn_bundle(OrbitCameraBundle::new(
+        OrbitCameraController::default(),
+        PerspectiveCameraBundle::default(),
+        Vec3::new(-2.0, 5.0, 5.0),
+        Vec3::new(0., 0., 0.),
+    ));
+}
 
 fn genmesh() -> Mesh {
     let points = kitti::parse_raw_velodyne(PathBuf::from("/home/sushi/Datasets/kitti/raw/velodyne_points/data/0000000000.bin"));
@@ -49,10 +68,7 @@ fn setup_points(
     mut pointcloud_config: ResMut<PointCloudConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    log::info!("Starting up...");
-    log::warn!("Starting up...");
-    log::debug!("Starting up...");
-    log::error!("Starting up...");
+    log::info!("Setting up points...");
 
     pointcloud_config.global = false;
 
@@ -76,13 +92,20 @@ fn setup_points(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..Default::default()
     });
-
-    // camera
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..Default::default()
-    });
 }
+
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut pointcloud_config: ResMut<PointCloudConfig>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    log::info!("Starting up...");
+    log::warn!("Starting up...");
+    log::debug!("Starting up...");
+    log::error!("Starting up...");
+}
+
 
 fn main() {
     App::new()
@@ -93,6 +116,10 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(PointCloudPlugin)
+        .add_plugin(LookTransformPlugin)
+        .add_plugin(OrbitCameraPlugin::default())
+        .add_startup_system(setup)
+        .add_startup_system(setup_camera)
         .add_startup_system(setup_points)
         .run();
 }
