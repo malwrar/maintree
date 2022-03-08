@@ -7,8 +7,9 @@ Firmware for various projects targeting the [blackpill][1] dev board.
 1. **Put the board in DFU mode**: Locate the NRST & BOOT0 buttons, which should
    be right next to each other.  Press both buttons at the same time (I use my
    pointer finger to press both) and hold them for a second or so. Then,
-   release the NRST button while still holding the BOOT0 button, then after a
-   second or so release the BOOT0 button.
+   release the NRST button while still holding the BOOT0 button. After another
+   second or so, release the BOOT0 button to finish placing the device in DFU
+   mode.
 2. **Build and flash the firmware**: Use the `./build_and_flash.sh` script to
    do this, simply provide the name of a target in `./src/bin/`. Some of the
    commands in that script require some additional system tools, on debian you
