@@ -1,4 +1,4 @@
-#blackpill
+# blackpill
 
 Firmware for various projects targeting the [blackpill][1] dev board.
 
