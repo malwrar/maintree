@@ -62,7 +62,6 @@ class App:
                     #cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
                 self.tracks = new_tracks
                 cv2.polylines(vis, [np.int32(tr) for tr in self.tracks], False, (0, 255, 0))
-                #draw_str(vis, (20, 20), 'track count: %d' % len(self.tracks))
 
             if self.frame_idx % self.detect_interval == 0:
                 mask = np.zeros_like(frame_gray)
@@ -80,7 +79,7 @@ class App:
             cv2.imshow('lk_track', vis)
 
             ch = 0xFF & cv2.waitKey(1)
-            if ch == 27:
+            if ch == ord('q'):
                 break
 
 def main():
