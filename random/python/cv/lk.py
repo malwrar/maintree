@@ -1,21 +1,5 @@
-'''
-Lucas-Kanade tracker
-====================
-Lucas-Kanade sparse optical flow demo. Uses goodFeaturesToTrack
-for track initialization and back-tracking for match verification
-between frames.
-Usage
------
-lk.py [<video_source>]
-Keys
-----
-ESC - exit
-'''
-
 import numpy as np
 import cv2
-#from common import anorm2, draw_str
-#from time import clock
 
 lk_params = dict( winSize  = (15, 15), 
                   maxLevel = 2, 
