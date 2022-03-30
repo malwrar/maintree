@@ -46,9 +46,12 @@ fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
+    // Init clock as defined in STM32F411xC "on-chip peripheral current consuption" section.
     let rcc = dp.RCC.constrain();
     let clocks = rcc.cfgr
-        .sysclk(48.MHz())
+        .sysclk(84.MHz())
+        .pclk1(42.MHz())
+        .pclk2(84.MHz())
         .freeze();
 
     let mut delay = Timer::syst(cp.SYST, &clocks).delay();
@@ -88,8 +91,8 @@ fn main() -> ! {
     display.reset(&mut rst, &mut delay).unwrap();
     display.init().unwrap();
 
-    let thin_stroke = PrimitiveStyle::with_stroke(Rgb565::WHITE, 1);
-    let thick_stroke = PrimitiveStyle::with_stroke(Rgb565::WHITE, 3);
+    let thin_stroke = PrimitiveStyle::with_stroke(Rgb565::GREEN, 1);
+    let thick_stroke = PrimitiveStyle::with_stroke(Rgb565::new(200, 0, 200), 3);
     let border_stroke = PrimitiveStyleBuilder::new()
         .stroke_color(Rgb565::RED)
         .stroke_width(3)
