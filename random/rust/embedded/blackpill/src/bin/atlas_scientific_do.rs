@@ -2,7 +2,6 @@
 #![no_main]
 #![deny(unsafe_code)]
 
-use core::fmt::Write;
 use core::panic::PanicInfo;
 
 use cortex_m_rt::entry;
@@ -22,13 +21,47 @@ fn panic(info: &PanicInfo) -> ! {
     loop {}
 }
 
+/// Really shitty atof implementation, doesn't handle negative numbers or fancy
+/// notation.
+fn ascii_to_float(float_string: &[u8]) -> f32 {
+    let mut characteristic = 0.0f32;
+    let mut mantissa       = 0.0f32;
+    let mut weight         = 1.0f32;
+    let mut in_mantissa    = false;  // float number part terms: characteristic.mantissa
+
+    for c in float_string {
+        let c = *c;
+
+        // Skip over any non-float characters
+        if (c < b'0' || c > b'9') && c != b'.' {
+            continue;
+        }
+
+        if c == b'.' {
+            in_mantissa = true;
+            continue;
+        }
+
+        if in_mantissa {
+            mantissa *= 10.0;
+            mantissa += (c - b'0') as f32;
+            weight *= 10.0;
+        } else {
+            characteristic *= 10.0;
+            characteristic += (c - b'0') as f32;
+        }
+    }
+
+    characteristic + (mantissa / weight)
+}
+
 #[entry]
 fn main() -> ! {
     rtt_init_print!();
     rprintln!("Initializing chip...");
 
     // Init chip
-    let cp = cortex_m::Peripherals::take().unwrap();
+    let _cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
     let rcc = dp.RCC.constrain();
@@ -59,39 +92,41 @@ fn main() -> ! {
         .unwrap()
         .with_u8_data();
 
-    let (mut tx, mut rx) = serial.split();
+    let (_tx, mut rx) = serial.split();
 
     led.set_low();  // on
 
     loop {
         // Read message as array of ascii chars.
-        let mut buf = [b'\0' as char; 64];  // Datasheet doesn't define a max message length afaict :/
+        let mut buf = [b'\0'; 64];  // Datasheet doesn't define a max message length afaict :/
         let mut i = 0;
         loop {
-            let c = block!(rx.read()).unwrap() as char;
+            let c = block!(rx.read()).unwrap();
+            if !(c as char).is_ascii() { panic!("Sensor sent non-ascii char."); }
 
             // End of individual messages are defined by carriage returns.
-            if c as u8 == b'\r' { break; }
+            if c == b'\r' { break; }
 
             buf[i] = c;
             i += 1;
         }
 
         // Print message
+        rprint!("got:       ");
         for c in buf {
-            if c as u8 != b'\0' {
-                rprint!("{}", c);
+            if c != b'\0' {
+                rprint!("{}", c as char);
             } else {
                 rprintln!();
                 break;
             }
         }
-        //// Parse message
-        //loop {
-        //    let i = buf
-        //        .iter()
-        //        .partition_in_place(|&n| n == b',');
-        //}
 
+        for resp in buf.split(|num| *num == b',') {
+            if (resp[0] as char).is_ascii_digit() {
+                let val = ascii_to_float(resp);
+                rprintln!("converted: {}", val);
+            }
+        }
     }
 }
