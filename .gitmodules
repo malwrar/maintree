@@ -25,3 +25,6 @@
 [submodule "third_party/bin/waifu2x"]
 	path = third_party/bin/waifu2x
 	url = https://github.com/nagadomi/waifu2x.git
+[submodule "third_party/cpp/ceres-solver"]
+	path = third_party/cpp/ceres-solver
+	url = https://github.com/ceres-solver/ceres-solver.git
