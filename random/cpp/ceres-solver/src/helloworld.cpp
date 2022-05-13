@@ -1,7 +1,11 @@
 #include <math.h>
 
-#include "ceres/ceres.h"
-#include "glog/logging.h"
+#include <set>
+#include <vector>
+
+#include <ceres/ceres.h>
+#include <glog/logging.h>
+#include <matplot/matplot.h>
 
 using ceres::NumericDiffCostFunction;
 using ceres::CostFunction;
@@ -42,5 +46,10 @@ int main(int argc, char** argv) {
     std::cout << summary.BriefReport() << "\n";
     std::cout << "x : " << initial_x << " -> " << x << "\n";
 
+    std::set<std::vector<double>> y = {
+        {16, 5, 9, 4}, {2, 11, 7, 14}, {3, 10, 6, 15}, {13, 8, 12, 1}};
+    matplot::plot(y);
+
+    matplot::show();
     return 0;
 }
