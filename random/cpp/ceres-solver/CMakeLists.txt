@@ -17,3 +17,19 @@ target_link_libraries(helloworld PUBLIC
 target_include_directories(helloworld PUBLIC
     ${CERES_INCLUDE_DIRS}
 )
+
+# http://ceres-solver.org/nnls_tutorial.html#bundle-adjustment
+add_executable(ba
+    src/ba.cpp
+    src/bal.cpp
+)
+target_compile_features(ba PRIVATE cxx_std_17)
+target_link_libraries(ba PUBLIC
+    ${CERES_LIBRARIES}
+    glog::glog
+    matplot
+)
+target_include_directories(ba PRIVATE include)
+target_include_directories(ba PUBLIC
+    ${CERES_INCLUDE_DIRS}
+)
