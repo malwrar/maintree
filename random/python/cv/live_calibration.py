@@ -88,6 +88,11 @@ def main():
     print(f'f_y = {float(mtx[1][1])}')
     print(f'c_x = {float(mtx[0][2])}')
     print(f'c_y = {float(mtx[1][2])}')
+    print(f'k_1 = {dist[0][0]}')
+    print(f'k_2 = {dist[0][1]}')
+    print(f'p_1 = {dist[0][2]}')
+    print(f'p_2 = {dist[0][3]}')
+    print(f'k_3 = {dist[0][4]}')
 
 if __name__ == '__main__':
     main()
