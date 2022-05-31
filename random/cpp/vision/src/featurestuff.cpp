@@ -20,14 +20,6 @@ static cv::Ptr<cv::line_descriptor::LSDDetector> LINE_DETECTOR = cv::line_descri
 #define PRINT_DEBUG(...) do{ } while ( false )
 #endif
 
-//class Keypoint {
-//public:
-//    Keypoint(int x, int y): 2d_x(x), 2d_y(y) {}
-//
-//private:
-//    int 2d_x, 2d_y;
-//}
-
 void draw_keypoints(
     cv::Mat& image,
     const std::vector<cv::KeyPoint>& keypoints,
@@ -57,6 +49,52 @@ void draw_lines(
     }
 }
 
+class Frame {
+public:
+    Frame(cv::Mat image): image(image) {
+        this->findFeatures();
+	}
+
+    void draw() {
+		cv::Mat output = image.clone();
+        draw_keypoints(output, akaze_features, cv::Scalar(255, 0, 0), cv::Scalar(0, 255, 0));
+        draw_keypoints(output, orb_features,   cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255));
+        draw_lines(output,     lines,          cv::Scalar(0, 255, 0, 10));
+        cv::imshow("frame", output);       
+	}
+
+private:
+    void findFeatures() {
+        // ORB
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+		ORB->detect(image, orb_features);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        PRINT_DEBUG("ORB time   = %.4f\n",
+                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
+
+        // AKAZE
+        begin = std::chrono::steady_clock::now();
+		AKAZE->detect(image, akaze_features);
+        end = std::chrono::steady_clock::now();
+        PRINT_DEBUG("AKAZE time = %.4f\n",
+                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
+
+		// Lines
+        begin = std::chrono::steady_clock::now();
+		cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1);
+		LINE_DETECTOR->detect(image, lines, 2, 1, mask);
+        end = std::chrono::steady_clock::now();
+        PRINT_DEBUG("LSD time   = %.4f\n",
+                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
+	}
+
+    cv::Mat image;
+
+    std::vector<cv::KeyPoint> orb_features;
+    std::vector<cv::KeyPoint> akaze_features;
+    std::vector<cv::line_descriptor::KeyLine> lines;
+};
+
 int main(int argc, char** argv) {
     int camera_idx = 0;
     if (argc > 1)
@@ -67,6 +105,9 @@ int main(int argc, char** argv) {
         printf("Can't open camera %u\n", camera_idx);
         return 0;
     }
+
+	Frame* cur_frame = nullptr;
+	Frame* last_frame = nullptr;
 
     while (true) {
         // Exit if esc or q key is pressed
@@ -82,50 +123,19 @@ int main(int argc, char** argv) {
 		//printf("%u %u\n", image.type(), image_contrast_enhanced.type());
 		//CLAHE->apply(image, image_contrast_enhanced);
 
-        // ORB
-        std::vector<cv::KeyPoint> orb_keypoints;
-        cv::Mat orb_descriptors;
+		cur_frame = new Frame(image);
+		cur_frame->draw();
 
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-		ORB->detectAndCompute(image, cv::noArray(), orb_keypoints,
-                orb_descriptors, false);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        
-        PRINT_DEBUG("ORB time   = %.4f\n",
-                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
-
-        // AKAZE
-        std::vector<cv::KeyPoint> akaze_keypoints;
-        cv::Mat akaze_descriptors;
-
-        begin = std::chrono::steady_clock::now();
-		AKAZE->detectAndCompute(image, cv::noArray(), akaze_keypoints,
-                akaze_descriptors, false);
-        end = std::chrono::steady_clock::now();
-        
-        PRINT_DEBUG("AKAZE time = %.4f\n",
-                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
-
-        PRINT_DEBUG("len(AKAZE) = %u, len(ORB) = %u\n", akaze_keypoints.size(), orb_keypoints.size());
-
-	    // Lines
-        std::vector<cv::line_descriptor::KeyLine> lines;
-
-        begin = std::chrono::steady_clock::now();
-	    cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1);
-	    LINE_DETECTOR->detect(image, lines, 2, 1, mask);
-        end = std::chrono::steady_clock::now();
-
-        PRINT_DEBUG("LSD time = %.4f\n",
-                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
-		PRINT_DEBUG("LSD #    = %lu\n", lines.size());
-
-        // Draw debug output.
-        draw_keypoints(image, akaze_keypoints, cv::Scalar(255, 0, 0), cv::Scalar(0, 255, 0));
-        draw_keypoints(image, orb_keypoints,   cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255));
-        draw_lines(image,     lines,           cv::Scalar(0, 255, 0));
-        cv::imshow("features", image);
+		if (last_frame != nullptr) {
+			delete last_frame;
+			last_frame = cur_frame;
+		}
     }
+
+	if (cur_frame != nullptr)
+		delete cur_frame;
+	if (last_frame != nullptr)
+		delete last_frame;
 
     return 0;
 }
