@@ -19,3 +19,16 @@ target_include_directories(featurestuff PUBLIC
     ${CERES_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )
+
+add_executable(optical_flow src/optical_flow.cpp)
+target_compile_features(optical_flow PRIVATE cxx_std_17)
+target_link_libraries(optical_flow PUBLIC
+    ${CERES_LIBRARIES}
+    ${OpenCV_LIBS}
+    glog::glog
+    matplot
+)
+target_include_directories(optical_flow PUBLIC
+    ${CERES_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
+)
