@@ -11,7 +11,6 @@
 static cv::Ptr<cv::Feature2D> AKAZE = cv::AKAZE::create();
 static cv::Ptr<cv::Feature2D> ORB = cv::ORB::create();
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
-static cv::Ptr<cv::line_descriptor::LSDDetector> LINE_DETECTOR = cv::line_descriptor::LSDDetector::createLSDDetector();
 
 #define DEBUG
 #ifdef DEBUG
@@ -36,19 +35,6 @@ void draw_keypoints(
     }
 }
 
-void draw_lines(
-    cv::Mat& image,
-    const std::vector<cv::line_descriptor::KeyLine>& lines,
-    cv::Scalar color
-) {
-    for (size_t i=0; i < lines.size(); i++) {
-        auto line = lines[i];
-        cv::Point pt1 = cv::Point(line.startPointX, line.startPointY);
-        cv::Point pt2 = cv::Point(line.endPointX,   line.endPointY);
-        cv::line(image, pt1, pt2, color, 1);
-    }
-}
-
 class Frame {
 public:
     Frame(cv::Mat image): image(image) {
@@ -59,7 +45,6 @@ public:
         cv::Mat output = image.clone();
         draw_keypoints(output, akaze_features, cv::Scalar(255, 0, 0), cv::Scalar(0, 255, 0));
         draw_keypoints(output, orb_features,   cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255));
-        draw_lines(output,     lines,          cv::Scalar(0, 255, 0, 10));
         cv::imshow("frame", output);       
     }
 
@@ -78,21 +63,12 @@ private:
         end = std::chrono::steady_clock::now();
         PRINT_DEBUG("AKAZE time = %.4f\n",
                 (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
-
-        // Lines
-        begin = std::chrono::steady_clock::now();
-        cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1);
-        LINE_DETECTOR->detect(image, lines, 2, 1, mask);
-        end = std::chrono::steady_clock::now();
-        PRINT_DEBUG("LSD time   = %.4f\n",
-                (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
     }
 
     cv::Mat image;
 
     std::vector<cv::KeyPoint> orb_features;
     std::vector<cv::KeyPoint> akaze_features;
-    std::vector<cv::line_descriptor::KeyLine> lines;
 };
 
 int main(int argc, char** argv) {
