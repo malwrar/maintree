@@ -108,9 +108,9 @@ int main(int argc, char **argv) {
         cv::imshow("frame", frame_processed);
 
         // Relocate features.
-        auto window_size = cv::Size(15, 15);
-        auto num_pyramids = 4;
-        auto termination_criteria = cv::TermCriteria(
+        const auto window_size = cv::Size(15, 15);
+        const auto num_pyramids = 4;
+        const auto termination_criteria = cv::TermCriteria(
                 (cv::TermCriteria::COUNT) + (cv::TermCriteria::EPS),
                 10,     //
                 0.03);  //
