@@ -29,10 +29,10 @@ void draw_keypoints(
     for (size_t i=0; i < keypoints.size(); i++) {
         int x = keypoints[i].pt.x + 0.5;
         int y = keypoints[i].pt.y + 0.5;
-		float radius = keypoints[i].size / 2.0;
+        float radius = keypoints[i].size / 2.0;
 
-		//cv::circle(image, cv::Point(x, y), 2.5 * radius, circle_color, 1);
-		cv::circle(image, cv::Point(x, y), 1.0, point_color, -1);
+        //cv::circle(image, cv::Point(x, y), 2.5 * radius, circle_color, 1);
+        cv::circle(image, cv::Point(x, y), 1.0, point_color, -1);
     }
 }
 
@@ -42,10 +42,10 @@ void draw_lines(
     cv::Scalar color
 ) {
     for (size_t i=0; i < lines.size(); i++) {
-		auto line = lines[i];
-		cv::Point pt1 = cv::Point(line.startPointX, line.startPointY);
-		cv::Point pt2 = cv::Point(line.endPointX,   line.endPointY);
-		cv::line(image, pt1, pt2, color, 1);
+        auto line = lines[i];
+        cv::Point pt1 = cv::Point(line.startPointX, line.startPointY);
+        cv::Point pt2 = cv::Point(line.endPointX,   line.endPointY);
+        cv::line(image, pt1, pt2, color, 1);
     }
 }
 
@@ -53,40 +53,40 @@ class Frame {
 public:
     Frame(cv::Mat image): image(image) {
         this->findFeatures();
-	}
+    }
 
     void draw() {
-		cv::Mat output = image.clone();
+        cv::Mat output = image.clone();
         draw_keypoints(output, akaze_features, cv::Scalar(255, 0, 0), cv::Scalar(0, 255, 0));
         draw_keypoints(output, orb_features,   cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 255));
         draw_lines(output,     lines,          cv::Scalar(0, 255, 0, 10));
         cv::imshow("frame", output);       
-	}
+    }
 
 private:
     void findFeatures() {
         // ORB
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-		ORB->detect(image, orb_features);
+        ORB->detect(image, orb_features);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         PRINT_DEBUG("ORB time   = %.4f\n",
                 (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
 
         // AKAZE
         begin = std::chrono::steady_clock::now();
-		AKAZE->detect(image, akaze_features);
+        AKAZE->detect(image, akaze_features);
         end = std::chrono::steady_clock::now();
         PRINT_DEBUG("AKAZE time = %.4f\n",
                 (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
 
-		// Lines
+        // Lines
         begin = std::chrono::steady_clock::now();
-		cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1);
-		LINE_DETECTOR->detect(image, lines, 2, 1, mask);
+        cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1);
+        LINE_DETECTOR->detect(image, lines, 2, 1, mask);
         end = std::chrono::steady_clock::now();
         PRINT_DEBUG("LSD time   = %.4f\n",
                 (float)(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()) / 1000.0f);
-	}
+    }
 
     cv::Mat image;
 
@@ -106,36 +106,36 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-	Frame* cur_frame = nullptr;
-	Frame* last_frame = nullptr;
+    Frame* cur_frame = nullptr;
+    Frame* last_frame = nullptr;
 
     while (true) {
         // Exit if esc or q key is pressed
-		int key = cv::waitKey(1);
-		if (key == 'q' || key == 27 /* ESC */) {
+        int key = cv::waitKey(1);
+        if (key == 'q' || key == 27 /* ESC */) {
             break;
-		}
+        }
 
         cv::Mat image;
         camera >> image;  // I really hate this syntax
 
         //cv::Mat image_contrast_enhanced;
-		//printf("%u %u\n", image.type(), image_contrast_enhanced.type());
-		//CLAHE->apply(image, image_contrast_enhanced);
+        //printf("%u %u\n", image.type(), image_contrast_enhanced.type());
+        //CLAHE->apply(image, image_contrast_enhanced);
 
-		cur_frame = new Frame(image);
-		cur_frame->draw();
+        cur_frame = new Frame(image);
+        cur_frame->draw();
 
-		if (last_frame != nullptr) {
-			delete last_frame;
-			last_frame = cur_frame;
-		}
+        if (last_frame != nullptr) {
+            delete last_frame;
+            last_frame = cur_frame;
+        }
     }
 
-	if (cur_frame != nullptr)
-		delete cur_frame;
-	if (last_frame != nullptr)
-		delete last_frame;
+    if (cur_frame != nullptr)
+        delete cur_frame;
+    if (last_frame != nullptr)
+        delete last_frame;
 
     return 0;
 }
