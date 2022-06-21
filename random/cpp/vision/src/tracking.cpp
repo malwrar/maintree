@@ -11,152 +11,250 @@
 static cv::Ptr<cv::Feature2D> FAST = cv::FastFeatureDetector::create(10);
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
 
-void printMat(cv::Mat mat, const char* label = NULL) {
-    if (label != NULL) {
-        printf("%s = \n", label);
+namespace util {
+
+    size_t count_nonzero(std::vector<unsigned char>& mask) {
+        size_t count = 0;
+
+        for (size_t i=0; i < mask.size(); i++) {
+            if (!mask[i]) { continue; }
+
+            count++;
+	}
+
+        return count;
     }
 
-    for (int row=0; row < mat.rows; row++) {
-        printf("[ ");
+    template <typename T>
+    void prune_vector(std::vector<T>& vec, std::vector<unsigned char>& mask) {
+        assert(vec.size() == mask.size());
 
-        for (int col=0; col < mat.cols; col++) {
-            float entry = mat.at<float>(row, col);
-            printf("%.03f ", entry);
+        std::vector<T> old = vec;
+
+        vec.clear();
+        vec.resize(mask.size());
+
+        for (size_t i=0; i < mask.size(); i++) {
+            if (!mask[i]) { continue; }
+
+            vec.push_back(old[i]);
+        }
+    }
+
+    void print_matrix(cv::Mat mat, const char* label = NULL) {
+        if (label != NULL) {
+            printf("%s = \n", label);
         }
 
-        printf("]\n");
+        for (int row=0; row < mat.rows; row++) {
+            printf("[ ");
+
+            for (int col=0; col < mat.cols; col++) {
+                float entry = mat.at<float>(row, col);
+                printf("%.03f ", entry);
+            }
+
+            printf("]\n");
+        }
+    }
+
+    void form_intrinsic_matrices(
+        cv::Mat& K,
+        cv::Mat& dist_coeff,
+        float fx,
+        float fy,
+        float cx,
+        float cy,
+        float k1,
+        float k2,
+        float p1,
+        float p2
+    ) {
+    
     }
 }
 
-class Capture {
-public:
-    Capture(const cv::Mat& image) {
-        cv::Mat image_greyscale;
-        cv::cvtColor(image, this->image, cv::COLOR_BGR2GRAY);
-        //CLAHE->apply(image_greyscale, this->image);
-    }
-
-    std::vector<cv::KeyPoint> getEdges() {
-        if (keypoints.size() == 0)
-            FAST->detect(image, keypoints);
-
-        return keypoints;
-    }
-
-    cv::Mat getImage() {
-        return image.clone();
-    }
-
-private:
-    cv::Mat image;
-    std::vector<cv::KeyPoint> keypoints;
+/**
+ *
+ */
+enum TrackerState {
+    Bootstrapping,
+    Initializing,
+    Tracking,
 };
 
-
-class Tracking {
+/**
+ * Given a continuous set of sequential, close captures from a single monocular
+ * camera, this class will attempt to track the 6 DoF pose of the camera in
+ * real time while simultaneously mapping the surrounding environment.
+ *
+ * Note that this class does not perform any offline refinement, and will
+ * likely drift over large distances.
+ */
+class Tracker {
 public:
-    Tracking() : keyframe(nullptr), curframe(nullptr) { }
+    Tracker() : state(TrackerState::Bootstrapping) { }
  
-    ~Tracking() {
-	if (keyframe != nullptr) { delete keyframe; }
-	if (curframe != nullptr) { delete curframe; }
+    /**
+     * Submit next image from camera for tracking.
+     */
+    bool submit(
+        const cv::Mat& image,
+        cv::Mat K,
+        cv::Mat dist_coef
+    ) {
+        printf("features: %lu\n", last_points_2d.size());
+        cv::Mat processed_image = enhanceImage(image);
+
+        switch (state) {
+        case TrackerState::Bootstrapping:
+            return bootstrap(processed_image, K, dist_coef);
+        case TrackerState::Initializing:
+            return initialize(processed_image, K, dist_coef);
+        case TrackerState::Tracking:
+            return track(processed_image, K, dist_coef);
+        default:
+            return false;
+	}
     }
 
-    /**
-     * Process next webcam capture.
-     */
-    void submitImage(const cv::Mat& image) {
-        assert(!image.empty() && image.channels() == 3);
+    bool debug(
+        cv::Mat& out_image,
+	bool use_unprocessed_image=true
+    ) {
+	// Draw 2d keypoints.
+        for (int i=0; i < last_points_2d.size(); i++) {
+            auto point = last_points_2d[i];
 
-        Capture* capture = new Capture(image);
+            int x = point.x + 0.5;
+            int y = point.y + 0.5;
 
-        if (anchors.size() == 0) {
-            keyframe = nullptr;
-        }
-	
-	// Manage captures.
-	if (keyframe == nullptr) {
-            keyframe = capture;
-            bootstrap();
-            return;
-        } else if (curframe != nullptr) {
-            delete curframe;
+            cv::circle(out_image, cv::Point(x, y), 1.0, cv::Scalar(255, 0, 0), -1);
         }
 
-        curframe = capture;
-
-        // Track keyframe features in current frame.
-        std::vector<unsigned char> status;
-        std::vector<float> error;
-        std::vector<cv::Point2f> tracked_anchors(anchors.size());
-
-        cv::calcOpticalFlowPyrLK(keyframe->getImage(), curframe->getImage(),
-            anchors, tracked_anchors, status, error, cv::Size(41, 41), 4);
-
-	// Prune any features that couldn't be tracked in the next frame.
-        std::vector<cv::Point2f> good_anchors;
-        cur_anchors.clear();
-
-        for (int i=0; i < anchors.size(); i++) {
-            if (status[i]) {
-                good_anchors.push_back(anchors[i]);
-                cur_anchors.push_back(tracked_anchors[i]);
-            }
-        }
-
-        // Determine if tracking was successful
-        if ((float)good_anchors.size() / (float)anchors.size() < 0.8) {
-            printf("Lost tracking.");
-            keyframe = nullptr;
-            curframe = nullptr;
-            return;
-        }
-
-        anchors = good_anchors;
-    }
-
-    /**
-     * Draw current tracking info on the current image for debugging purposes.
-     *
-     * Ensure `image` patches the most recent image submitted via `submitImage()`!
-     */
-    void annotateImage(cv::Mat& image) {
-        printf("current anchors: %u\n", cur_anchors.size());
-
-        for (int i=0; i < cur_anchors.size(); i++) {
-            int x = cur_anchors[i].x + 0.5;
-            int y = cur_anchors[i].y + 0.5;
-
-            cv::circle(image, cv::Point(x, y), 1.0, cv::Scalar(255, 0, 0), -1);
-        }
-
-        //if (anchors.size() == cur_anchors.size()) {
-        //    cv::Mat F = cv::findFundamentalMat(anchors, cur_anchors, cv::FM_RANSAC, 4.0, 0.99);
-        //    printMat(F, "F");
-        //}
+	return true;
     }
 
 private:
-    Capture* keyframe;
-    Capture* curframe;
+    TrackerState state;
 
-    std::vector<cv::Point2f> anchors;
-    std::vector<cv::Point2f> cur_anchors;
+    cv::Mat last_image;
+    std::vector<cv::KeyPoint> last_features;
+    //std::vector<cv::KeyPoint> descriptors;
+    std::vector<cv::Point2f> last_points_2d;
 
-    void bootstrap() {
-        assert(keyframe != nullptr);
+    /**
+     *
+     */
+    bool bootstrap(
+        const cv::Mat& image,
+        cv::Mat K,
+        cv::Mat dist_coef
+    ) {
+        reset();
 
-        auto keypoints = keyframe->getEdges();
+	last_image = image;
 
-        anchors.clear();
-        anchors = std::vector<cv::Point2f>(keypoints.size());
+        FAST->detect(last_image, last_features);
 
-        for (auto keypoint : keypoints) {
-            anchors.push_back(keypoint.pt);
+        last_points_2d.reserve(last_features.size());
+        for (auto feature : last_features) {
+            last_points_2d.push_back(feature.pt);
         }
-        printf("initial keypoints: %u\n", keypoints.size());
-        printf("initial anchors:   %u\n", anchors.size());
+
+        state = TrackerState::Initializing;
+
+        return false;
     }
+
+    /**
+     *
+     */
+    bool initialize(
+        const cv::Mat& image,
+        cv::Mat K,
+        cv::Mat dist_coef
+    ) {
+        // Forward optical flow tracking
+        std::vector<unsigned char> status(last_features.size());
+        std::vector<float> error(last_features.size());
+
+        std::vector<cv::Point2f> retracked_points(last_features.size());
+
+        cv::calcOpticalFlowPyrLK(last_image, image, last_points_2d,
+                retracked_points, status, error, cv::Size(9, 9), 5);
+                
+        printf("Points eliminated in forward track:  %lu\n",
+                status.size() - util::count_nonzero(status));
+
+        std::vector<cv::Point2f> good_points;
+        for (size_t i=0; i < retracked_points.size(); i++) {
+            if (!status[i]) { continue; }
+            good_points.push_back(retracked_points[i]);
+        }
+
+        // Backwards optical flow retracking.
+        status.clear();
+        error.clear();
+
+        status.reserve(good_points.size());
+        error.reserve(good_points.size());
+
+        std::vector<cv::Point2f> backtracked_points(last_features.size());
+
+        cv::calcOpticalFlowPyrLK(image, last_image, good_points,
+                backtracked_points, status, error, cv::Size(9, 9), 1);
+
+        printf("Points eliminated in backward track: %lu\n",
+                status.size() - util::count_nonzero(status));
+
+        std::vector<cv::Point2f> gooder_points;
+        for (size_t i=0; i < good_points.size(); i++) {
+            if (!status[i]) { continue; }
+            gooder_points.push_back(good_points[i]);
+        }
+
+        last_points_2d = gooder_points;
+
+        last_image = image;
+
+        return false;
+    }
+
+    /**
+     *
+     */
+    bool track(
+        const cv::Mat& image,
+        cv::Mat K,
+        cv::Mat dist_coef
+    ) {
+
+        return true;
+    }
+
+    /**
+     *
+     */
+    void reset() {
+        state = TrackerState::Bootstrapping;
+        last_features.clear();
+        last_points_2d.clear();
+    }
+
+    /**
+     *
+     */
+    cv::Mat enhanceImage(const cv::Mat& image) {
+        // Do some basic preprocesing on the original image.
+        cv::Mat image_gray, image_processed;
+
+        cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+        CLAHE->apply(image_gray, image_processed);
+
+	return image_processed;
+    }
+
 };
 
 int main(int argc, char **argv) {
@@ -171,7 +269,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    Tracking tracker;
+    Tracker tracker;
 
     while (true) {
         // Exit if esc or q key is pressed
@@ -180,13 +278,16 @@ int main(int argc, char **argv) {
             break;
         }
 
+        // TODO: do camera calibration, or take it from config/args
+        cv::Mat K, dist_coef;
+
         // Process next frame
         cv::Mat frame;
         camera >> frame;
 
-        tracker.submitImage(frame);
-        tracker.annotateImage(frame);
+        tracker.submit(frame, K, dist_coef);
 
-        cv::imshow("tracking", frame);
+        if (tracker.debug(frame))
+            cv::imshow("tracking", frame);
     }
 }
