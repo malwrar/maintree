@@ -12,7 +12,6 @@ static cv::Ptr<cv::Feature2D> FAST = cv::FastFeatureDetector::create(10);
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
 
 namespace util {
-
     size_t count_nonzero(std::vector<unsigned char>& mask) {
         size_t count = 0;
 
@@ -25,6 +24,20 @@ namespace util {
         return count;
     }
 
+    size_t count_nonzero(cv::Mat& mask) {
+        size_t count = 0;
+
+        for (size_t i=0; i < mask.rows; i++) {
+            for (size_t j=0; j < mask.cols; j++) {
+                if (!mask.at<unsigned char>(i, j)) { continue; }
+
+                count++;
+	    }
+	}
+
+        return count;
+    }
+
     template <typename T>
     void prune_vector(std::vector<T>& vec, std::vector<unsigned char>& mask) {
         assert(vec.size() == mask.size());
@@ -32,10 +45,26 @@ namespace util {
         std::vector<T> old = vec;
 
         vec.clear();
-        vec.resize(mask.size());
+        vec.reserve(mask.size());
 
         for (size_t i=0; i < mask.size(); i++) {
             if (!mask[i]) { continue; }
+
+            vec.push_back(old[i]);
+        }
+    }
+
+    template <typename T>
+    void prune_vector(std::vector<T>& vec, cv::Mat& mask) {
+        assert(vec.size() == mask.rows);
+
+        std::vector<T> old = vec;
+
+        vec.clear();
+        vec.reserve(mask.rows);
+
+        for (size_t i=0; i < mask.rows; i++) {
+            if (mask.at<unsigned char>(i, 0) == 0) { continue; }
 
             vec.push_back(old[i]);
         }
@@ -183,39 +212,42 @@ private:
 
         cv::calcOpticalFlowPyrLK(last_image, image, last_points_2d,
                 retracked_points, status, error, cv::Size(9, 9), 5);
-                
-        printf("Points eliminated in forward track:  %lu\n",
-                status.size() - util::count_nonzero(status));
 
-        std::vector<cv::Point2f> good_points;
-        for (size_t i=0; i < retracked_points.size(); i++) {
-            if (!status[i]) { continue; }
-            good_points.push_back(retracked_points[i]);
-        }
+        util::prune_vector(last_points_2d, status);
+        util::prune_vector(retracked_points, status);
+
+        printf("Points eliminated in forward optical flow:    %lu\n",
+                status.size() - util::count_nonzero(status));
 
         // Backwards optical flow retracking.
         status.clear();
         error.clear();
 
-        status.reserve(good_points.size());
-        error.reserve(good_points.size());
+        status.reserve(retracked_points.size());
+        error.reserve(retracked_points.size());
 
-        std::vector<cv::Point2f> backtracked_points(last_features.size());
+        std::vector<cv::Point2f> backtracked_points(retracked_points.size());
 
-        cv::calcOpticalFlowPyrLK(image, last_image, good_points,
+        cv::calcOpticalFlowPyrLK(image, last_image, retracked_points,
                 backtracked_points, status, error, cv::Size(9, 9), 1);
 
-        printf("Points eliminated in backward track: %lu\n",
+        util::prune_vector(last_points_2d, status);
+        util::prune_vector(retracked_points, status);
+
+        printf("Points eliminated by backward optical flow:   %lu\n",
                 status.size() - util::count_nonzero(status));
 
-        std::vector<cv::Point2f> gooder_points;
-        for (size_t i=0; i < good_points.size(); i++) {
-            if (!status[i]) { continue; }
-            gooder_points.push_back(good_points[i]);
-        }
+        // Verify features
+        cv::Mat H, mask;
 
-        last_points_2d = gooder_points;
+        H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
 
+        printf("Points eliminated by homography verification: %lu\n",
+                mask.rows - util::count_nonzero(mask));
+
+        util::prune_vector(retracked_points, mask);
+
+        last_points_2d = retracked_points;
         last_image = image;
 
         return false;
