@@ -89,7 +89,7 @@ namespace util {
 
     void form_intrinsic_matrices(
         cv::Mat& K,
-        cv::Mat& dist_coeff,
+        cv::Mat& dist_coef,
         float fx,
         float fy,
         float cx,
@@ -99,7 +99,17 @@ namespace util {
         float p1,
         float p2
     ) {
-    
+        K = cv::Mat::eye(3, 3, CV_32F);
+        K.at<float>(0, 0) = fx;
+        K.at<float>(1, 1) = fy;
+        K.at<float>(0, 2) = cx;
+        K.at<float>(1, 2) = cy;
+
+        dist_coef = cv::Mat(4, 1, CV_32F);
+        dist_coef.at<float>(0) = k1;
+        dist_coef.at<float>(1) = k2;
+        dist_coef.at<float>(2) = p1;
+        dist_coef.at<float>(3) = p2;
     }
 }
 
@@ -108,7 +118,7 @@ namespace util {
  */
 enum TrackerState {
     Bootstrapping,
-    Initializing,
+    Localizing,
     Tracking,
 };
 
@@ -138,8 +148,8 @@ public:
         switch (state) {
         case TrackerState::Bootstrapping:
             return bootstrap(processed_image, K, dist_coef);
-        case TrackerState::Initializing:
-            return initialize(processed_image, K, dist_coef);
+        case TrackerState::Localizing:
+            return localize(processed_image, K, dist_coef);
         case TrackerState::Tracking:
             return track(processed_image, K, dist_coef);
         default:
@@ -151,7 +161,7 @@ public:
         cv::Mat& out_image,
 	bool use_unprocessed_image=true
     ) {
-	// Draw 2d keypoints.
+        // Draw 2d keypoints.
         for (int i=0; i < last_points_2d.size(); i++) {
             auto point = last_points_2d[i];
 
@@ -161,16 +171,15 @@ public:
             cv::circle(out_image, cv::Point(x, y), 1.0, cv::Scalar(255, 0, 0), -1);
         }
 
-	return true;
+        return true;
     }
 
 private:
     TrackerState state;
 
     cv::Mat last_image;
-    std::vector<cv::KeyPoint> last_features;
-    //std::vector<cv::KeyPoint> descriptors;
     std::vector<cv::Point2f> last_points_2d;
+    //std::vector<cv::Vec3> last_points_3d;
 
     /**
      *
@@ -182,16 +191,17 @@ private:
     ) {
         reset();
 
-	last_image = image;
+        last_image = image;
 
-        FAST->detect(last_image, last_features);
+        std::vector<cv::KeyPoint> features;
+        FAST->detect(last_image, features);
 
-        last_points_2d.reserve(last_features.size());
-        for (auto feature : last_features) {
+        last_points_2d.reserve(features.size());
+        for (auto feature : features) {
             last_points_2d.push_back(feature.pt);
         }
 
-        state = TrackerState::Initializing;
+        state = TrackerState::Localizing;
 
         return false;
     }
@@ -199,19 +209,24 @@ private:
     /**
      *
      */
-    bool initialize(
+    bool localize(
         const cv::Mat& image,
         cv::Mat K,
         cv::Mat dist_coef
     ) {
         // Forward optical flow tracking
-        std::vector<unsigned char> status(last_features.size());
-        std::vector<float> error(last_features.size());
+        std::vector<unsigned char> status(last_points_2d.size());
+        std::vector<float> error(last_points_2d.size());
 
-        std::vector<cv::Point2f> retracked_points(last_features.size());
+        std::vector<cv::Point2f> retracked_points(last_points_2d.size());
+
+        auto begin = std::chrono::steady_clock::now();
 
         cv::calcOpticalFlowPyrLK(last_image, image, last_points_2d,
                 retracked_points, status, error, cv::Size(9, 9), 5);
+
+        auto end = std::chrono::steady_clock::now();
+	printf("forward tracking    %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
 
         util::prune_vector(last_points_2d, status);
         util::prune_vector(retracked_points, status);
@@ -228,8 +243,13 @@ private:
 
         std::vector<cv::Point2f> backtracked_points(retracked_points.size());
 
+        begin = std::chrono::steady_clock::now();
+
         cv::calcOpticalFlowPyrLK(image, last_image, retracked_points,
                 backtracked_points, status, error, cv::Size(9, 9), 1);
+
+        end = std::chrono::steady_clock::now();
+	printf("backward tracking   %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
 
         util::prune_vector(last_points_2d, status);
         util::prune_vector(retracked_points, status);
@@ -237,16 +257,57 @@ private:
         printf("Points eliminated by backward optical flow:   %lu\n",
                 status.size() - util::count_nonzero(status));
 
-        // Verify features
-        cv::Mat H, mask;
+        // Attempt to verify features by looking for homographies
+        //std::vector<std::vector<cv::Point2f>> local_homographies;
+        //std::vector<cv::Point2f> ;
 
-        H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
+        //while (true) {
+        //    std::vector<cv::Point2f> matches;
+
+            begin = std::chrono::steady_clock::now();
+
+            cv::Mat H, mask;
+            H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
+
+            end = std::chrono::steady_clock::now();
+	    printf("homography tracking %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+
+        //    for (size_t i=0; i < mask.rows; i++) {
+        //        if (mask.at<unsigned char>(i, 0) == 0) {
+        //            matches.push_back();
+        //        } else {
+        //            remaining.push_back();
+        //        }
+        //    }
+        //}
 
         printf("Points eliminated by homography verification: %lu\n",
                 mask.rows - util::count_nonzero(mask));
 
+        util::prune_vector(last_points_2d, mask);
         util::prune_vector(retracked_points, mask);
 
+        // Attempt triangulation
+        status.clear();
+
+        begin = std::chrono::steady_clock::now();
+
+        cv::Mat F = cv::findFundamentalMat(last_points_2d, retracked_points, cv::FM_RANSAC, 3, 0.99, status);
+
+        end = std::chrono::steady_clock::now();
+	printf("fundamental matrix  %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+
+        util::prune_vector(last_points_2d, status);
+        util::prune_vector(retracked_points, status);
+
+        printf("Points eliminated by fundamental matrix:      %lu\n",
+                status.size() - util::count_nonzero(status));
+
+	//cv::Mat E = K.t() * F * K;
+	//if (cv::fabsf(cv::determinant(E)) <= 1e-07) {
+	//}
+
+        // Save last 
         last_points_2d = retracked_points;
         last_image = image;
 
@@ -270,7 +331,6 @@ private:
      */
     void reset() {
         state = TrackerState::Bootstrapping;
-        last_features.clear();
         last_points_2d.clear();
     }
 
@@ -287,6 +347,19 @@ private:
 	return image_processed;
     }
 
+    /**
+     *
+     */
+    void relocateFeatures() {
+
+    }
+
+    /**
+     *
+     */
+    void filterNonHomographies(std::vector<cv::Point2f>& p1, std::vector<cv::Point2f>& p2) {
+
+    }
 };
 
 int main(int argc, char **argv) {
@@ -312,6 +385,16 @@ int main(int argc, char **argv) {
 
         // TODO: do camera calibration, or take it from config/args
         cv::Mat K, dist_coef;
+        util::form_intrinsic_matrices(K, dist_coef, 
+            929.485616777751,
+            819.5918436401257,
+            243.95961493171143,
+            339.8639601176542,
+            0.6819743796586462,
+            -34.53253298643073,
+            -0.20280419786726658,
+            0.09206263406958995);
+
 
         // Process next frame
         cv::Mat frame;
