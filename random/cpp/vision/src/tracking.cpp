@@ -90,26 +90,26 @@ namespace util {
     void form_intrinsic_matrices(
         cv::Mat& K,
         cv::Mat& dist_coef,
-        float fx,
-        float fy,
-        float cx,
-        float cy,
-        float k1,
-        float k2,
-        float p1,
-        float p2
+        double fx,
+        double fy,
+        double cx,
+        double cy,
+        double k1,
+        double k2,
+        double p1,
+        double p2
     ) {
-        K = cv::Mat::eye(3, 3, CV_32F);
-        K.at<float>(0, 0) = fx;
-        K.at<float>(1, 1) = fy;
-        K.at<float>(0, 2) = cx;
-        K.at<float>(1, 2) = cy;
+        K = cv::Mat::eye(3, 3, CV_64F);
+        K.at<double>(0, 0) = fx;
+        K.at<double>(1, 1) = fy;
+        K.at<double>(0, 2) = cx;
+        K.at<double>(1, 2) = cy;
 
-        dist_coef = cv::Mat(4, 1, CV_32F);
-        dist_coef.at<float>(0) = k1;
-        dist_coef.at<float>(1) = k2;
-        dist_coef.at<float>(2) = p1;
-        dist_coef.at<float>(3) = p2;
+        dist_coef = cv::Mat(4, 1, CV_64F);
+        dist_coef.at<double>(0) = k1;
+        dist_coef.at<double>(1) = k2;
+        dist_coef.at<double>(2) = p1;
+        dist_coef.at<double>(3) = p2;
     }
 }
 
@@ -214,6 +214,11 @@ private:
         cv::Mat K,
         cv::Mat dist_coef
     ) {
+        if (last_points_2d.size() < 10) {
+            state = TrackerState::Bootstrapping;
+            return false;
+        }
+
         // Forward optical flow tracking
         std::vector<unsigned char> status(last_points_2d.size());
         std::vector<float> error(last_points_2d.size());
@@ -226,13 +231,13 @@ private:
                 retracked_points, status, error, cv::Size(9, 9), 5);
 
         auto end = std::chrono::steady_clock::now();
-	printf("forward tracking    %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+	//printf("forward tracking    %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
 
         util::prune_vector(last_points_2d, status);
         util::prune_vector(retracked_points, status);
 
-        printf("Points eliminated in forward optical flow:    %lu\n",
-                status.size() - util::count_nonzero(status));
+        //printf("Points eliminated in forward optical flow:    %lu\n",
+        //        status.size() - util::count_nonzero(status));
 
         // Backwards optical flow retracking.
         status.clear();
@@ -249,63 +254,97 @@ private:
                 backtracked_points, status, error, cv::Size(9, 9), 1);
 
         end = std::chrono::steady_clock::now();
-	printf("backward tracking   %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+	//printf("backward tracking   %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
 
         util::prune_vector(last_points_2d, status);
         util::prune_vector(retracked_points, status);
 
-        printf("Points eliminated by backward optical flow:   %lu\n",
-                status.size() - util::count_nonzero(status));
+        //printf("Points eliminated by backward optical flow:   %lu\n",
+        //        status.size() - util::count_nonzero(status));
 
         // Attempt to verify features by looking for homographies
         //std::vector<std::vector<cv::Point2f>> local_homographies;
         //std::vector<cv::Point2f> ;
 
+        if (last_points_2d.size() < 4) {
+            state = TrackerState::Bootstrapping;
+            return false;
+        }
+
+        begin = std::chrono::steady_clock::now();
+
+        cv::Mat H, mask;
+        H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
+
         //while (true) {
-        //    std::vector<cv::Point2f> matches;
+        //    if (last_points_2d.size() <= 44) { break; }
 
-            begin = std::chrono::steady_clock::now();
+        //    cv::Mat H, mask;
+        //    H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
+        //    printf("a %lu\n", util::count_nonzero(mask));
 
-            cv::Mat H, mask;
-            H = cv::findHomography(last_points_2d, retracked_points, cv::RANSAC, 3.0, mask);
-
-            end = std::chrono::steady_clock::now();
-	    printf("homography tracking %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
-
-        //    for (size_t i=0; i < mask.rows; i++) {
+        //    for (size_t i=mask.rows; i > 0; i--) {
         //        if (mask.at<unsigned char>(i, 0) == 0) {
-        //            matches.push_back();
+        //            last_points_2d.erase(last_points_2d.begin() + (i - 1));
+        //            retracked_points.erase(retracked_points.begin() + (i - 1));
         //        } else {
-        //            remaining.push_back();
+        //            p1.push_back(last_points_2d[i-1]);
+        //            p2.push_back(retracked_points[i-1]);
         //        }
         //    }
         //}
 
-        printf("Points eliminated by homography verification: %lu\n",
-                mask.rows - util::count_nonzero(mask));
+        end = std::chrono::steady_clock::now();
+	//printf("homography tracking %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
 
         util::prune_vector(last_points_2d, mask);
         util::prune_vector(retracked_points, mask);
 
-        // Attempt triangulation
-        status.clear();
+        if (last_points_2d.size() < 10) {
+            state = TrackerState::Bootstrapping;
+            return false;
+        }
 
-        begin = std::chrono::steady_clock::now();
+        //printf("Points eliminated by homography verification: %lu\n",
+        //        mask.rows - util::count_nonzero(mask));
 
-        cv::Mat F = cv::findFundamentalMat(last_points_2d, retracked_points, cv::FM_RANSAC, 3, 0.99, status);
+        // asdf
+        cv::Mat rigidT = cv::estimateAffinePartial2D(last_points_2d, retracked_points);
+        if (cv::norm(rigidT.col(2)) > 100) {
+            printf("Attempting triangulation\n");
 
-        end = std::chrono::steady_clock::now();
-	printf("fundamental matrix  %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+            // Attempt triangulation
+            status.clear();
+            status.reserve(last_points_2d.size());
 
-        util::prune_vector(last_points_2d, status);
-        util::prune_vector(retracked_points, status);
+            begin = std::chrono::steady_clock::now();
 
-        printf("Points eliminated by fundamental matrix:      %lu\n",
-                status.size() - util::count_nonzero(status));
+            cv::Mat F = cv::findFundamentalMat(last_points_2d, retracked_points, cv::FM_RANSAC, 3, 0.99, status);
+            end = std::chrono::steady_clock::now();
 
-	//cv::Mat E = K.t() * F * K;
-	//if (cv::fabsf(cv::determinant(E)) <= 1e-07) {
-	//}
+            printf("fundamental matrix  %.3f\n", (float)std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0);
+	    if (!F.empty()) {
+                util::prune_vector(last_points_2d, status);
+                util::prune_vector(retracked_points, status);
+
+                printf("Points eliminated by fundamental matrix:      %lu\n",
+                        status.size() - util::count_nonzero(status));
+
+                cv::Mat E = K.t() * F * K;
+                if (fabsf(cv::determinant(E)) <= 1e-07) {
+                    printf("det(E) = %f\n", cv::determinant(E));
+
+                //    //cv::Mat_<double> R1(3, 3);
+                //    //cv::Mat_<double> R2(3, 3);
+                //    //cv::Mat_<double> t1(1, 3);
+                //    //cv::Mat_<double> t2(1, 3);
+
+                //    //if (decomposeE(E, R1, R2, t1, t2)) {
+
+                //    //}
+                }
+	    }
+        }
 
         // Save last 
         last_points_2d = retracked_points;
