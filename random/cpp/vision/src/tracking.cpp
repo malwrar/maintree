@@ -8,6 +8,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/line_descriptor.hpp>
 
+#include "tracking.h"
+
 static cv::Ptr<cv::Feature2D> FAST = cv::FastFeatureDetector::create(10);
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
 
@@ -70,7 +72,7 @@ namespace util {
         }
     }
 
-    void print_matrix(cv::Mat mat, const char* label = NULL) {
+    void print_matrix(cv::Mat mat, const char* label) {
         if (label != NULL) {
             printf("%s = \n", label);
         }
@@ -110,6 +112,138 @@ namespace util {
         dist_coef.at<double>(1) = k2;
         dist_coef.at<double>(2) = p1;
         dist_coef.at<double>(3) = p2;
+    }
+
+    bool decomposeE(
+        cv::Mat E,
+        cv::Mat R1,
+        cv::Mat R2,
+        cv::Mat t1,
+        cv::Mat t2
+    ) {
+        cv::SVD svd(E, cv::SVD::MODIFY_A);
+
+        double svd_ratio = fabsf(svd.w.at<double>(0) / svd.w.at<double>(1));
+        if (svd_ratio > 1.0) svd_ratio = 1.0 / svd_ratio;
+
+        if (svd_ratio < 0.7) {
+            printf("too far apart :(\n");
+	    return false;
+	}
+
+        cv::Matx33d W( 0, -1,  0,
+                       1,  0,  0,
+                       0,  0,  1);
+
+        cv::Matx33d Wt(0,  1,  0,
+                      -1,  0,  0,
+                       0,  0,  1);
+
+        R1 =  svd.u * cv::Mat(W) * svd.vt;
+        R2 =  svd.u * cv::Mat(W) * svd.vt;
+        t1 =  svd.u.col(2);
+        t2 = -svd.u.col(2);
+
+        return true;
+    }
+
+    /**
+     *
+     */
+    bool triangulate(
+        const std::vector<cv::Point2f>& p1,
+        const std::vector<cv::Point2f>& p2,
+        std::vector<cv::Point3d>& p3,
+        std::vector<unsigned char>& status,
+        cv::Mat E
+    ) {
+        cv::Mat_<double> R1(3, 3);
+        cv::Mat_<double> R2(3, 3);
+        cv::Mat_<double> t1(1, 3);
+        cv::Mat_<double> t2(1, 3);
+
+	if (decomposeE(E, R1, R2, t1, t2)) {
+	    if (cv::determinant(R1) + 1.0 >= 1e-09) {
+                return triangulate(p1, p2, p3, status, R1, R2, t1, t2);
+	    }
+	}
+
+	if (decomposeE(-E, R1, R2, t1, t2)) {
+	    if (cv::determinant(R1) - 1.0 <= 1e-07) {
+                return triangulate(p1, p2, p3, status, R1, R2, t1, t2);
+	    }
+	}
+
+	return false;
+    }
+
+    bool triangulate(
+        const std::vector<cv::Point2f>& p1,
+        const std::vector<cv::Point2f>& p2,
+        std::vector<cv::Point3d>& p3,
+        std::vector<unsigned char>& status,
+        cv::Mat_<double> R1,
+        cv::Mat_<double> R2,
+        cv::Mat_<double> t1,
+        cv::Mat_<double> t2
+    ) {
+        if (triangulate(p1, p2, p3, status, R1, t1)) return true;
+        if (triangulate(p1, p2, p3, status, R2, t1)) return true;
+        if (triangulate(p1, p2, p3, status, R1, t2)) return true;
+        if (triangulate(p1, p2, p3, status, R2, t2)) return true;
+
+        printf("Failed to triangulate for all possible rotation and translation matrices.\n");
+        return false;
+    }
+
+    bool triangulate(
+        const std::vector<cv::Point2f>& p1,
+        const std::vector<cv::Point2f>& p2,
+        std::vector<cv::Point3d>& p3,
+        std::vector<unsigned char>& status,
+        cv::Mat_<double> R,
+        cv::Mat_<double> t
+    ) {
+        cv::Mat P = cv::Mat::eye(3, 4, CV_64FC1);
+        cv::Mat_<double> P1 = (cv::Mat_<double>(3,4) <<
+            R(0,0), R(0,1), R(0,2), t(0),
+            R(1,0), R(1,1), R(1,2), t(1),
+            R(2,0), R(2,1), R(2,2), t(2));
+
+        cv::Mat p3_h(4, p1.size(), CV_32FC1);
+        cv::triangulatePoints(P, P1, p1, p2, p3_h);
+
+        cv::Mat p3_e;  // euclidian
+        cv::convertPointsFromHomogeneous(cv::Mat(p3_h.t()).reshape(4, 1), p3_e);
+
+        p3.clear();
+
+        printf("status %lu %lu\n", p3_e.rows, status.size());
+
+        for (int i=0; i < p3_e.rows; i++) {
+            auto p = p3_e.at<cv::Point3f>(i);
+
+            // Is point in front?
+            if (p.z <= 0) {
+		status.push_back(0);
+	    } else {
+		status.push_back(1);
+                p3.push_back(p);
+	    }
+
+        }
+
+	double percentage = (double)p3.size() / (double)p3_e.rows;
+        printf("%.02f\n", percentage);
+        if (percentage < 0.75) {
+            printf("Only %d%% of the points are in front of the camera.\n",
+                    (size_t)(100.0 * percentage));
+            return false;
+        }
+
+        // TODO: validate by calculating reprojection.
+
+        return true;
     }
 }
 
@@ -179,7 +313,7 @@ private:
 
     cv::Mat last_image;
     std::vector<cv::Point2f> last_points_2d;
-    //std::vector<cv::Vec3> last_points_3d;
+    std::vector<cv::Point3d> points_3d;
 
     /**
      *
@@ -334,16 +468,26 @@ private:
                 if (fabsf(cv::determinant(E)) <= 1e-07) {
                     printf("det(E) = %f\n", cv::determinant(E));
 
-                //    //cv::Mat_<double> R1(3, 3);
-                //    //cv::Mat_<double> R2(3, 3);
-                //    //cv::Mat_<double> t1(1, 3);
-                //    //cv::Mat_<double> t2(1, 3);
+                    std::vector<cv::Point2f> p1, p2;
 
-                //    //if (decomposeE(E, R1, R2, t1, t2)) {
+                    cv::undistortPoints(last_points_2d,   p1, K, cv::Mat());
+                    cv::undistortPoints(retracked_points, p2, K, cv::Mat());
 
-                //    //}
+                    points_3d.clear();
+                    status.clear();
+
+                    status.reserve(last_points_2d.size());
+
+                    if (util::triangulate(p1, p2, points_3d, status, E)) {
+                        printf("aaa %lu %lu\n", last_points_2d.size(), status.size());
+                        util::prune_vector(last_points_2d, status);
+                        util::prune_vector(retracked_points, status);
+
+                        state = TrackerState::Tracking;
+                        return true;
+                    }
                 }
-	    }
+            }
         }
 
         // Save last 
@@ -361,6 +505,23 @@ private:
         cv::Mat K,
         cv::Mat dist_coef
     ) {
+        printf("Tracking!\n");
+
+        // Forward optical flow tracking
+        std::vector<unsigned char> status(last_points_2d.size());
+        std::vector<float> error(last_points_2d.size());
+
+        std::vector<cv::Point2f> retracked_points(last_points_2d.size());
+
+        cv::calcOpticalFlowPyrLK(last_image, image, last_points_2d,
+                retracked_points, status, error, cv::Size(11, 11), 5);
+
+        util::prune_vector(points_3d, status);
+        util::prune_vector(last_points_2d, status);
+        util::prune_vector(retracked_points, status);
+
+        last_points_2d = retracked_points;
+        last_image = image;
 
         return true;
     }
