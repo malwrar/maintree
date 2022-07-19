@@ -18,9 +18,9 @@ bool Initializer::attemptTriangulation(
     std::vector<cv::Mat> pyramid = preprocessFrame(frame);
 
     // Attempt to refind points from the last frame using optical flow.
-    std::vector<cv::Point2f> retracked_points;
-    std::vector<unsigned char> status;
-    std::vector<float> error;
+    std::vector<cv::Point2f> retracked_points(last_points.size());
+    std::vector<unsigned char> status(last_points.size());
+    std::vector<float> error(last_points.size());
 
     cv::calcOpticalFlowPyrLK(last_pyr, pyramid, last_points,
             retracked_points, status, error, cv::Size(9, 9), 4);
