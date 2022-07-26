@@ -15,18 +15,23 @@
  */
 class Initializer {
 public:
-    Initializer(cv::Mat initial_keyframe) { setKeyframe(initial_keyframe); }
+    Initializer(cv::Mat initial_keyframe, cv::Mat K) : K(K) {
+        setKeyframe(initial_keyframe);
+    }
 
-    bool attemptTriangulation(cv::Mat frame, std::vector<cv::Point3d>& points_3d);
+    bool attemptTriangulation(cv::Mat frame, cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3d);
     void setKeyframe(cv::Mat keyframe);
 
     cv::Mat createDebugImage();
 
 private:
+    cv::Mat K;
     std::vector<cv::Mat> keyframe_pyr, last_pyr;
-    std::vector<cv::Point2f> last_points;
+    std::vector<cv::Point2f> keyframe_points, last_points;
 
     std::vector<cv::Mat> preprocessFrame(const cv::Mat& frame);
+    bool triangulate(std::vector<cv::Point2f> p1, std::vector<cv::Point2f> p2,
+        cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3);
 };
 
 #endif  // MIRAGE_INITIALIZER_H

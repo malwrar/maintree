@@ -1,4 +1,5 @@
 #include "initializer.h"
+#include "triangulation.h"
 #include "util.h"
 
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
@@ -6,7 +7,9 @@ static cv::Ptr<cv::Feature2D> FAST = cv::FastFeatureDetector::create(10);
 
 bool Initializer::attemptTriangulation(
     cv::Mat frame,
-    std::vector<cv::Point3d>& points_3d
+    cv::Mat& Rcw,
+    cv::Mat& Tcw, 
+    std::vector<cv::Point3f>& p3d
 ) {
     // We need at least 5 points to do a triangulation, we failed to (re)find
     // enough we should create a new keyframe.
@@ -25,18 +28,29 @@ bool Initializer::attemptTriangulation(
     cv::calcOpticalFlowPyrLK(last_pyr, pyramid, last_points,
             retracked_points, status, error, cv::Size(9, 9), 4);
 
+    util::prune_vector(keyframe_points, status);
     util::prune_vector(retracked_points, status);
-    util::prune_vector(last_points, status);
 
     // TODO: backwards track & prune any that are untracked or some # of pixels off
+    // TODO: perform filtering
 
-    // TODO: attempt triangulation
+    // Estimate distance between points and attempt triangulation if parallax
+    // is sufficient.
+    bool ret = false;
+
+    cv::Mat transform = cv::estimateAffinePartial2D(keyframe_points, retracked_points);
+    printf("cv::norm(transform.col(2)) = %lf\n", cv::norm(transform.col(2)));
+
+    if (cv::norm(transform.col(2)) > 100) {
+        printf("Attempting triangulation\n");
+        ret = triangulate(keyframe_points, retracked_points, Rcw, Tcw, p3d);
+    }
 
     // Get ready for the next invocation.
     last_pyr = pyramid;
     last_points = retracked_points;
 
-    return false;
+    return ret;
 }
 
 /**
@@ -52,9 +66,13 @@ void Initializer::setKeyframe(cv::Mat keyframe) {
     FAST->detect(last_pyr[0], features);
 
     last_points.clear();
-    last_points.reserve(features.size());
+    keyframe_points.clear();
+
+    keyframe_points.reserve(features.size());
+    keyframe_points.reserve(features.size());
 
     for (auto feature : features) {
+        keyframe_points.push_back(feature.pt);
         last_points.push_back(feature.pt);
     }
 }
@@ -96,4 +114,65 @@ std::vector<cv::Mat> Initializer::preprocessFrame(const cv::Mat& frame) {
     cv::buildOpticalFlowPyramid(frame_equalized, out, cv::Size(9, 9), 4);
 
     return out;
+}
+
+bool Initializer::triangulate(
+    std::vector<cv::Point2f> p1,
+    std::vector<cv::Point2f> p2,
+    cv::Mat& Rcw,
+    cv::Mat& Tcw,
+    std::vector<cv::Point3f>& p3
+) {
+    std::vector<unsigned char> status(p1.size());
+
+    cv::Mat F = cv::findFundamentalMat(p1, p2, cv::FM_RANSAC, 3, 0.99, status);
+    if (F.empty()) {
+        printf("Failed to find fundamental matrix.\n");
+        return false;
+    }
+    util::prune_vector(p1, status);
+    util::prune_vector(p2, status);
+
+    return math::triangulateF(p1, p2, F, K, Rcw, Tcw, p3);
+
+    /*
+
+    cv::Mat F = cv::findFundamentalMat(keyframe_points, retracked_points, cv::FM_RANSAC, 3, 0.99, status);
+    if (!F.empty()) {
+        util::prune_vector(keyframe_points, status);
+        util::prune_vector(retracked_points, status);
+
+        printf("Points eliminated by fundamental matrix:      %lu\n",
+                status.size() - util::count_nonzero(status));
+
+        cv::Mat E = K.t() * F * K;
+        if (fabsf(cv::determinant(E)) <= 1e-07) {
+            printf("det(E) = %f\n", cv::determinant(E));
+
+            std::vector<cv::Point2f> p1, p2;
+
+            cv::undistortPoints(keyframe_points,  p1, K, cv::Mat());
+            cv::undistortPoints(retracked_points, p2, K, cv::Mat());
+
+            if (util::triangulate(p1, p2, points_3d, status, E)) {
+                printf("aaa %lu %lu\n", keyframe_points.size(), status.size());
+                util::prune_vector(keyframe_points, status);
+                util::prune_vector(retracked_points, status);
+                util::prune_vector(points_3d, status);
+
+                for (size_t i=0; i < points_3d.size(); i++) {
+                    auto point = points_3d[i];
+
+                    printf("%03u: [%lf, %lf, %lf]\n", i, point.x, point.y, point.z);
+                }
+
+                // Get ready for the next invocation.
+                last_pyr = pyramid;
+                last_points = retracked_points;
+
+                return true;
+            }
+        }
+    }
+    */
 }

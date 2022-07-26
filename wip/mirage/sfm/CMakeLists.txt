@@ -11,6 +11,7 @@ add_library(mirage STATIC)
 target_sources(mirage
     PRIVATE
         src/initializer.cpp
+        src/triangulation.cpp
         src/util.cpp
 )
 
