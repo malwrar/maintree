@@ -34,8 +34,9 @@ fn setup(
     });
 
     // Camera
-    commands.spawn_bundle(PerspectiveCameraBundle {
+    let camera = Camera3dBundle {
         transform: Transform::from_xyz(5.0, 3.5, -5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
-    });
+    };
+    commands.spawn_bundle(camera);
 }
