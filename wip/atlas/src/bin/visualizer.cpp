@@ -34,6 +34,14 @@ int main(int argc, char* argv[]) {
 
     a();
 
+    cv::Mat image;
+
+    camera >> image;  // I really hate this syntax
+    Frame keyframe(image);
+
+    camera >> image;  // I really really really hate this syntax
+    Frame prev_frame(image);
+
     while (true) {
         // Stop if exit key pressed.
         int key = cv::waitKey(1);
@@ -41,102 +49,124 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        cv::Mat image;
-        camera >> image;  // I really hate this syntax
+        // Get current frame.
+        camera >> image;  // I really really hate this syntax
+        Frame cur_frame(image);
 
-        cv::Mat image_gray, image_clahe, image_processed;
+        cv::Mat debug_image;
 
-        auto enhance_begin = std::chrono::steady_clock::now();
-        cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-        CLAHE->apply(image_gray, image_processed);
-        //CLAHE->apply(image_gray, image_clahe);
-        //cv::fastNlMeansDenoising(image_clahe, image_processed, 10);
-        auto enhance_end = std::chrono::steady_clock::now();
-
-        cv::imshow("clahe", image_processed);
-
-        std::vector<cv::KeyPoint> kp;
-        cv::Mat kp_d;
-
-        auto akaze_begin = std::chrono::steady_clock::now();
-        AKAZE->detectAndCompute(image_processed, cv::noArray(), kp, kp_d);
-        auto akaze_end = std::chrono::steady_clock::now();
-
-        std::vector<cv::KeyPoint> kp2;
-        cv::Mat kp_d2;
-
-        AKAZE->detectAndCompute(image, cv::noArray(), kp2, kp_d2);
-
-        std::vector<cv::KeyPoint> p;
-
-        auto fast_begin = std::chrono::steady_clock::now();
-        FAST->detect(image_processed, p);
-        auto fast_end = std::chrono::steady_clock::now();
-
-        cv::Mat debug_image = image.clone();
-
-        cv::drawKeypoints(image, kp2, debug_image,
+        cv::drawKeypoints(image, cur_frame.features, debug_image,
                 cv::Scalar(0, 200, 200),
                 cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-        draw_points(debug_image, kp, cv::Scalar(0, 150, 0));
-        draw_points(debug_image, p, cv::Scalar(100, 0, 0));
+        cv::imshow("cur_frame", debug_image);
 
-        // Output timing info
-        const size_t text_offset = 15;
-        size_t y = text_offset;
+        // Find correspondences between this frame and the current keyframe.
+        keyframe.findMatchingFeatureIndices(cur_frame);
 
-        cv::putText(debug_image,
-            (std::string("Enhance time: ")
-                + std::to_string(
-                    (float)(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            enhance_begin - enhance_end
-                        ).count()
-                    )
-                    / 1000.0f)
-                + "ms").c_str(),
-            cv::Point(2, y),
-            cv::FONT_HERSHEY_PLAIN,
-            1.0,
-            CV_RGB(200, 200, 0));
+        // TODO: find correspondences with keyframe (can we still see it?)
+        // TODO: estimate pose
+        // TODO: calc parallax (how far are we from it)
+        // TODO: triangulate corresponding features (where exactly are these features)
 
-        y += text_offset;
+        // TODO: calc global homography?
 
-        cv::putText(debug_image,
-            (std::string("AKAZE time: ")
-                + std::to_string(
-                    (float)(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            akaze_end - akaze_begin
-                        ).count()
-                    )
-                    / 1000.0f)
-                + "ms").c_str(),
-            cv::Point(2, y),
-            cv::FONT_HERSHEY_PLAIN,
-            1.0,
-            CV_RGB(0, 200, 0));
+        // Keep track of this frame next iteration.
+        prev_frame = cur_frame;
 
-        y += text_offset;
+        //cv::Mat image_gray, image_clahe, image_processed;
 
-        cv::putText(debug_image,
-            (std::string("FAST time: ")
-                + std::to_string(
-                    (float)(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            fast_end - fast_begin
-                        ).count()
-                    )
-                    / 1000.0f)
-                + "ms").c_str(),
-            cv::Point(2, y),
-            cv::FONT_HERSHEY_PLAIN,
-            1.0,
-            CV_RGB(0, 0, 200));
+        //auto enhance_begin = std::chrono::steady_clock::now();
+        //cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+        //CLAHE->apply(image_gray, image_processed);
+        ////CLAHE->apply(image_gray, image_clahe);
+        ////cv::fastNlMeansDenoising(image_clahe, image_processed, 10);
+        //auto enhance_end = std::chrono::steady_clock::now();
 
-        y += text_offset;
+        //cv::imshow("clahe", image_processed);
 
-        cv::imshow("features", debug_image);
+        //std::vector<cv::KeyPoint> kp;
+        //cv::Mat kp_d;
+
+        //auto akaze_begin = std::chrono::steady_clock::now();
+        //AKAZE->detectAndCompute(image_processed, cv::noArray(), kp, kp_d);
+        //auto akaze_end = std::chrono::steady_clock::now();
+
+        //std::vector<cv::KeyPoint> kp2;
+        //cv::Mat kp_d2;
+
+        //AKAZE->detectAndCompute(image, cv::noArray(), kp2, kp_d2);
+
+        //std::vector<cv::KeyPoint> p;
+
+        //auto fast_begin = std::chrono::steady_clock::now();
+        //FAST->detect(image_processed, p);
+        //auto fast_end = std::chrono::steady_clock::now();
+
+        //cv::Mat debug_image = image.clone();
+
+        //cv::drawKeypoints(image, kp2, debug_image,
+        //        cv::Scalar(0, 200, 200),
+        //        cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+        //draw_points(debug_image, kp, cv::Scalar(0, 150, 0));
+        //draw_points(debug_image, p, cv::Scalar(100, 0, 0));
+
+        //// Output timing info
+        //const size_t text_offset = 15;
+        //size_t y = text_offset;
+
+        //cv::putText(debug_image,
+        //    (std::string("Enhance time: ")
+        //        + std::to_string(
+        //            (float)(
+        //                std::chrono::duration_cast<std::chrono::milliseconds>(
+        //                    enhance_begin - enhance_end
+        //                ).count()
+        //            )
+        //            / 1000.0f)
+        //        + "ms").c_str(),
+        //    cv::Point(2, y),
+        //    cv::FONT_HERSHEY_PLAIN,
+        //    1.0,
+        //    CV_RGB(200, 200, 0));
+
+        //y += text_offset;
+
+        //cv::putText(debug_image,
+        //    (std::string("AKAZE time: ")
+        //        + std::to_string(
+        //            (float)(
+        //                std::chrono::duration_cast<std::chrono::milliseconds>(
+        //                    akaze_end - akaze_begin
+        //                ).count()
+        //            )
+        //            / 1000.0f)
+        //        + "ms").c_str(),
+        //    cv::Point(2, y),
+        //    cv::FONT_HERSHEY_PLAIN,
+        //    1.0,
+        //    CV_RGB(0, 200, 0));
+
+        //y += text_offset;
+
+        //cv::putText(debug_image,
+        //    (std::string("FAST time: ")
+        //        + std::to_string(
+        //            (float)(
+        //                std::chrono::duration_cast<std::chrono::milliseconds>(
+        //                    fast_end - fast_begin
+        //                ).count()
+        //            )
+        //            / 1000.0f)
+        //        + "ms").c_str(),
+        //    cv::Point(2, y),
+        //    cv::FONT_HERSHEY_PLAIN,
+        //    1.0,
+        //    CV_RGB(0, 0, 200));
+
+        //y += text_offset;
+
+        //cv::imshow("features", debug_image);
     }
 }

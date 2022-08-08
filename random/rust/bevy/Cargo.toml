@@ -18,6 +18,6 @@ image = "0.13.0"
 [dependencies.malicious]
 path = "../../../common/rust/"
 
-[dependencies.x11rb]
-version = "0.8.1"
-features = [ "all-extensions" ]
+[dependencies.x11]
+git = "https://github.com/malwrar/x11-rs"
+branch = "backlog"

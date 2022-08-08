@@ -6,7 +6,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/line_descriptor.hpp>
 
 static cv::Ptr<cv::Feature2D> AKAZE = cv::AKAZE::create();
 static cv::Ptr<cv::Feature2D> ORB = cv::ORB::create();

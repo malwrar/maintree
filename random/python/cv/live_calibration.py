@@ -2,6 +2,8 @@
 Calc camera instrinsics given n>2 captures including https://github.com/opencv/opencv/blob/4.x/doc/pattern.png
 '''
 
+import sys
+
 import cv2
 import numpy as np
  
@@ -21,7 +23,14 @@ def main():
     print('  4.) ???')
     print('  5.) Profit!')
 
-    capture_device = cv2.VideoCapture(2)
+    if len(sys.argv) < 2:
+        print(f'Usage: {sys.argv[0]} <webcam num>')
+        return
+
+    capture_device = cv2.VideoCapture(int(sys.argv[1]))
+    if not capture_device:
+        print(f'Failed to get capture device {sys.argv[1]}')
+        return
 
     objp = np.zeros((BOARD_SIZE[1]*BOARD_SIZE[0], 3), np.float32)
     objp[:,:2] = np.mgrid[0:BOARD_SIZE[0], 0:BOARD_SIZE[1]].T.reshape(-1,2)   
@@ -33,11 +42,13 @@ def main():
     shape = None
 
     while True:
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1)
+        if key == ord('q') or key == 27:  # 27 == esc
             print('Got exit key, breaking early...')
             break
     
         ret, frame = capture_device.read()
+
         shape = frame.shape
         height, width, _ = shape
     

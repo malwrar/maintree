@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     cv::Mat curframe;
     camera >> curframe;
 
-    Initializer initializer(curframe, K);
+    Initializer initializer(curframe, K, dist_coef);
 
     while (true) {
         // Exit if esc or q key is pressed

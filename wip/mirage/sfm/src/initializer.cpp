@@ -1,5 +1,4 @@
 #include "initializer.h"
-#include "triangulation.h"
 #include "util.h"
 
 static cv::Ptr<cv::CLAHE> CLAHE = cv::createCLAHE();
@@ -26,31 +25,39 @@ bool Initializer::attemptTriangulation(
     std::vector<float> error(last_points.size());
 
     cv::calcOpticalFlowPyrLK(last_pyr, pyramid, last_points,
-            retracked_points, status, error, cv::Size(9, 9), 4);
+            retracked_points, status, error, cv::Size(9, 9), pyramid_depth);
 
+    // TODO: don't prune keyframe points directly, maybe we retrack them in a subsequent frame?
     util::prune_vector(keyframe_points, status);
     util::prune_vector(retracked_points, status);
 
-    // TODO: backwards track & prune any that are untracked or some # of pixels off
-    // TODO: perform filtering
+    cv::Mat R, t, mask;
+    cv::Mat E = cv::findEssentialMat(keyframe_points, retracked_points, K, cv::RANSAC, 0.999, 0.5, mask);
+    cv::recoverPose(E, keyframe_points, retracked_points, K, R, t, mask);
 
-    // Estimate distance between points and attempt triangulation if parallax
-    // is sufficient.
-    bool ret = false;
+    cv::Mat Rt(3, 4, CV_32F);
+    R.convertTo(R, CV_32F);
+    t.convertTo(t, CV_32F);
+    cv::hconcat(R, t, Rt);
 
-    cv::Mat transform = cv::estimateAffinePartial2D(keyframe_points, retracked_points);
-    printf("cv::norm(transform.col(2)) = %lf\n", cv::norm(transform.col(2)));
+    cv::Mat Rt_init = (cv::Mat_<float>(3,4) << 1,0,0,0,0,1,0,0,0,0,1,0);
+    cv::Mat P0 = K * Rt_init;
+    cv::Mat P1 = K * Rt;
+    cv::Mat points4d;
+    cv::triangulatePoints(P0, P1, keyframe_points, retracked_points, points4d);
 
-    if (cv::norm(transform.col(2)) > 100) {
-        printf("Attempting triangulation\n");
-        ret = triangulate(keyframe_points, retracked_points, Rcw, Tcw, p3d);
-    }
+    p3d.clear();
+    p3d.resize(util::count_nonzero(mask));
 
     // Get ready for the next invocation.
     last_pyr = pyramid;
     last_points = retracked_points;
 
-    return ret;
+    return false;
+
+    //return attemptTriangulation(keyframe_pyr, keyframe_points, pyramid,
+    //    retracked_points, Rcw, Tcw, p3d);
+
 }
 
 /**
@@ -105,17 +112,49 @@ cv::Mat Initializer::createDebugImage() {
  */
 std::vector<cv::Mat> Initializer::preprocessFrame(const cv::Mat& frame) {
     // Do some basic preprocesing on the original frame.
-    cv::Mat frame_gray, frame_equalized;
+    cv::Mat frame_gray, frame_undistorted, frame_equalized;
     std::vector<cv::Mat> out;
 
     cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
-    CLAHE->apply(frame_gray, frame_equalized);
+    cv::undistort(frame_gray, frame_undistorted, K, dist_coef);
+    CLAHE->apply(frame_undistorted, frame_equalized);
 
-    cv::buildOpticalFlowPyramid(frame_equalized, out, cv::Size(9, 9), 4);
+    cv::buildOpticalFlowPyramid(frame_equalized, out, cv::Size(9, 9),
+        pyramid_depth);
 
     return out;
 }
 
+//bool Initializer::attemptTriangulation(
+//    std::vector<cv::Mat> pyr1,
+//    std::vector<cv::Point2f> pt1,
+//    std::vector<cv::Mat> pyr2,
+//    std::vector<cv::Point2f> pt2,
+//    cv::Mat& Rcw,
+//    cv::Mat& Tcw,
+//    std::vector<cv::Point3f>& p3d
+//) {
+//    /*
+//    cv::Mat transform = cv::estimateAffinePartial2D(keyframe_points, retracked_points);
+//    printf("cv::norm(transform.col(2)) = %lf\n", cv::norm(transform.col(2)));
+//
+//    if (cv::norm(transform.col(2)) > 100) {
+//        printf("Attempting triangulation\n");
+//        ret = triangulate(keyframe_points, retracked_points, Rcw, Tcw, p3d);
+//    }
+//    */
+//
+//   cv::Mat mask;
+//   cv::Mat E = cv::findEssentialMat(pt1, pt2, K, cv::RANSAC, 0.999, 0.5, mask);
+//   cv::recoverPose(E, pt1, pt2, K, Rcw, Tcw, mask);
+//
+//    cv::Mat points_h, Points_e;
+//    //triangulate;
+//
+//   return false;
+//}
+
+/*
 bool Initializer::triangulate(
     std::vector<cv::Point2f> p1,
     std::vector<cv::Point2f> p2,
@@ -174,5 +213,5 @@ bool Initializer::triangulate(
             }
         }
     }
-    */
 }
+*/

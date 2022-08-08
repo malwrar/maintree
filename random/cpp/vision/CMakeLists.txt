@@ -67,3 +67,8 @@ add_executable(tracking src/tracking.cpp)
 target_link_libraries(tracking PUBLIC vision)
 target_include_directories(tracking PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(tracking PUBLIC ${OpenCV_LIBS})
+
+add_executable(tracking2 src/tracking2.cpp)
+target_link_libraries(tracking2 PUBLIC vision)
+target_include_directories(tracking2 PUBLIC ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(tracking2 PUBLIC ${OpenCV_LIBS})

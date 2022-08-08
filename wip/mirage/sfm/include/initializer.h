@@ -15,23 +15,33 @@
  */
 class Initializer {
 public:
-    Initializer(cv::Mat initial_keyframe, cv::Mat K) : K(K) {
+    Initializer(
+        cv::Mat initial_keyframe,
+        cv::Mat K,
+        cv::Mat dist_coef,
+        int pyramid_depth=4
+    ) : K(K), dist_coef(dist_coef), pyramid_depth(pyramid_depth) {
         setKeyframe(initial_keyframe);
+        K.convertTo(K, CV_32F);
     }
 
-    bool attemptTriangulation(cv::Mat frame, cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3d);
+    bool attemptTriangulation(cv::Mat frame,
+        cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3d);
     void setKeyframe(cv::Mat keyframe);
 
     cv::Mat createDebugImage();
 
 private:
-    cv::Mat K;
+    cv::Mat K, dist_coef;
     std::vector<cv::Mat> keyframe_pyr, last_pyr;
     std::vector<cv::Point2f> keyframe_points, last_points;
+    int pyramid_depth;
 
     std::vector<cv::Mat> preprocessFrame(const cv::Mat& frame);
-    bool triangulate(std::vector<cv::Point2f> p1, std::vector<cv::Point2f> p2,
-        cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3);
+    bool attemptTriangulation(
+        std::vector<cv::Mat> pyr1, std::vector<cv::Point2f> pt1,
+        std::vector<cv::Mat> pyr2, std::vector<cv::Point2f> pt2,
+        cv::Mat& Rcw, cv::Mat& Tcw, std::vector<cv::Point3f>& p3d);
 };
 
 #endif  // MIRAGE_INITIALIZER_H
