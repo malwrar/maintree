@@ -26,7 +26,7 @@ use opencv::{
 use petgraph::{
 	Graph,
 	graph::NodeIndex,
-	dot::Dot,
+	dot::Dot, visit::IntoNeighbors,
 };
 
 use uuid::Uuid;
@@ -60,32 +60,88 @@ const SQUARE_SIZE: f32 = 4.0;
 
 #[derive(Debug)]
 struct Chessboard {
-	pub corners_2d: Mat,
-	pub corners_3d: Vec<Point3f>,
+	pub points_3d: Mat,
+	pub points_2d: Mat,
+	// TODO: adapt to the following
+	//   1. "Chessboard" is a collection of corners, which can be thought of as a planar collection of 3d points with a known true orientation.
+	//   2. Chessboard's known 3d points are found in 2d image c1, we can now solvePnP for t[] and R[]
+	//   3. Draw axis with PnP-derived t[] and R[]
+	//   4. Repeat for next image c2
+	//   5. Calculate camera displacement between c1 and c2 using t[] and R[], use this to estimate c2 pose.
+	//   6. Send c1, c2, ..., pose to bevy visualization, use to move camera initially facing cube
+	//   7. dv/dt prediction for interpolation/smoothing?
+	//   8. What assumptions are we making? Can we estimate object warp and move chessboard 3d points accordingly?
 }
 
 impl Chessboard {
-	fn find(frame: &Mat) -> Option<Self> {
-		let mut corners = Mat::default();
-		if (!calib3d::find_chessboard_corners(
-				&frame, Size::new(BOARD_WIDTH, BOARD_HEIGHT),
-				&mut corners, 
-				calib3d::CALIB_CB_ADAPTIVE_THRESH
-				    + calib3d::CALIB_CB_NORMALIZE_IMAGE
-					+ calib3d::CALIB_CB_FAST_CHECK).unwrap()) {
-			return None;
+	fn new() -> Self {
+		// Create normalized 3d representation of board corner locations.
+		let mut points_3d = Vec::new();
+		for x in 0..BOARD_WIDTH {
+			for y in 0..BOARD_HEIGHT {
+				points_3d.push(vec![x as f32, y as f32, 0.0]);
+			}
 		}
 
-		let subpix_criteria = TermCriteria::new(
-			TermCriteria_Type::EPS as i32 | TermCriteria_Type::COUNT as i32,
-			30, 0.001).unwrap();
-		imgproc::corner_sub_pix(&frame, &mut corners, Size::new(11, 11), Size::new(-1, -1), subpix_criteria).unwrap();
+		// Convert that to something opencv-compatible.
+		let points_3d = Mat::from_slice_2d(&points_3d)
+			.unwrap()
+			.reshape(1, 3)
+			.unwrap();
 
-		Some(Self {
-			corners_2d: corners,
-			corners_3d: Vec::new(),  // Need more observations to be located.
-		})
+		Self {
+			points_3d,
+			points_2d: Mat::default(),
+		}
 	}
+
+	fn find(frame: &Mat) -> Vec<Self> {
+		// TODO: ugly...
+		let mut boards = Vec::new();
+
+		let mut board = Self::new();
+		if (calib3d::find_chessboard_corners(&frame,
+				Size::new(BOARD_WIDTH, BOARD_HEIGHT),
+				&mut board.points_2d, calib3d::CALIB_CB_ADAPTIVE_THRESH
+				    + calib3d::CALIB_CB_NORMALIZE_IMAGE
+					+ calib3d::CALIB_CB_FAST_CHECK).unwrap()) {
+			let subpix_criteria = TermCriteria::new(
+					TermCriteria_Type::EPS as i32 | TermCriteria_Type::COUNT as i32,
+					30, 0.001).unwrap();
+
+			imgproc::corner_sub_pix(&frame, &mut board.points_2d, Size::new(11, 11),
+					Size::new(-1, -1), subpix_criteria)
+				.unwrap();		
+
+			// TODO: adapt 3d point mesh to observed warped surface?
+
+			boards.push(board);
+		}
+
+		boards
+	}
+
+	//fn find(frame: &Mat) -> Option<Self> {
+	//	let mut corners = Mat::default();
+	//	if (!calib3d::find_chessboard_corners(
+	//			&frame, Size::new(BOARD_WIDTH, BOARD_HEIGHT),
+	//			&mut corners, 
+	//			calib3d::CALIB_CB_ADAPTIVE_THRESH
+	//			    + calib3d::CALIB_CB_NORMALIZE_IMAGE
+	//				+ calib3d::CALIB_CB_FAST_CHECK).unwrap()) {
+	//		return None;
+	//	}
+
+	//	let subpix_criteria = TermCriteria::new(
+	//		TermCriteria_Type::EPS as i32 | TermCriteria_Type::COUNT as i32,
+	//		30, 0.001).unwrap();
+	//	imgproc::corner_sub_pix(&frame, &mut corners, Size::new(11, 11), Size::new(-1, -1), subpix_criteria).unwrap();
+
+	//	Some(Self {
+	//		corners_2d: corners,
+	//		corners_3d: Vec::new(),  // Need more observations to be located.
+	//	})
+	//}
 }
 
 /**
@@ -151,16 +207,25 @@ impl World {
 
 		let landmarks = self.find_landmarks(&gray);
 		if landmarks.len() > 0 {
-			let keyframe = self.add_keyframe();
+			let keyframe_idx = self.add_keyframe();
 
 			for (uuid, landmark) in landmarks {
-				let landmark = self.landmarks
+				let points_2d = landmark.points_2d.clone(); // Make a copy of this before landmark ownership changes.
+
+				let landmark_idx = self.landmarks
 					.entry(uuid)
 					.or_insert_with(|| self.observations.add_node(Observation::Landmark(uuid, landmark)))
 					.clone();
 
+				let node = self.observations.node_weight_mut(landmark_idx).unwrap();
+				match node {
+					Observation::Landmark(_, data) => {
+						data.points_2d = points_2d;
+					},
+					_ => (),
+				}
 
-				self.observations.add_edge(keyframe, landmark, ());
+				self.observations.add_edge(keyframe_idx, landmark_idx, ());
 			}
 
 			return true;
@@ -168,20 +233,41 @@ impl World {
 
 		false
 	}
+	
+	pub fn debug_annotate_last(&self, frame: &mut Mat) {
+		if let Some(sample) = self.last_sample {
+			for node_idx in self.observations.neighbors(sample) {
+				let observation = self.observations
+					.node_weight(node_idx)
+					.unwrap();
+
+				match observation {
+					Observation::Landmark(_uuid, landmark) => {
+						calib3d::draw_chessboard_corners(frame,
+							Size::new(BOARD_WIDTH, BOARD_HEIGHT),
+							&landmark.points_2d, true)
+						.unwrap();
+					},
+					_ => (),
+				}
+			}
+		}
+	}
 
 	fn find_landmarks(&self, frame: &Mat) -> Vec<(Uuid, Chessboard)> {
-		let mut landmarks = Vec::new();
+		let mut found = Vec::new();
 
-		if let Some(chessboard) = Chessboard::find(&frame) {
-			landmarks.push(
+		for landmark in Chessboard::find(frame) {
+			found.push(
 				(
+					// TODO; include an ID mechanism rather than assuming it's the same chessboard?
 					Uuid::parse_str("1651e3b0-cd6e-4e22-bb7e-6fe98d213b49").unwrap(),
-					chessboard
+					landmark,
 				)
 			);
 		}
 
-		landmarks
+		found
 	}
 
 	fn add_keyframe(&mut self) -> NodeIndex {
@@ -212,7 +298,7 @@ fn main() -> Result<()> {
 
 	loop {
 		if highgui::wait_key(10)? > 0 { break; }
-		if observation_count > 5 { break; }  // TODO: eliminate this when structure figured out.
+		//if observation_count > 5 { break; }  // TODO: eliminate this when structure figured out.
 
 		let mut frame = Mat::default();
 		file.read(&mut frame)?;
@@ -220,14 +306,9 @@ fn main() -> Result<()> {
 		if world.process_next(&frame) {
 			observation_count += 1;
 			
-			//let observation = &world.observations[state.observations.len() - 1];
-			//calib3d::draw_chessboard_corners(
-			//	&mut frame,
-			//	Size::new(BOARD_WIDTH, BOARD_HEIGHT),
-			//	&observation.corners_2d,
-			//	true);
 
 			//println!("Found chessboard ({} so far)!", state.observations.len());
+			world.debug_annotate_last(&mut frame);
 		}
 
 		//draw_axis(&mut frame, &R, &t, &K, &dist_coef);
