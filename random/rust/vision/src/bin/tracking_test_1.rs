@@ -1,8 +1,20 @@
 //! Tracks the chessboard and QR code patterns in tracking_test_1.mp4.
 //! Based on https://docs.opencv.org/4.6.0/de/d45/samples_2cpp_2tutorial_code_2features2D_2Homography_2decompose_homography_8cpp-example.html
 
+use std::collections::{
+	HashMap,
+	LinkedList,
+};
+
 use opencv::{
-	core::{Point2f, Point3f, Size, CV_64F, TermCriteria, TermCriteria_Type},
+	core::{
+		Point2f,
+		Point3f,
+		Size,
+		CV_64F,
+		TermCriteria,
+		TermCriteria_Type
+	},
 	calib3d,
 	highgui,
 	imgproc,
@@ -12,8 +24,12 @@ use opencv::{
 };
 
 use petgraph::{
-	graph::UnGraph,
+	Graph,
+	graph::NodeIndex,
+	dot::Dot,
 };
+
+use uuid::Uuid;
 
 const BOARD_WIDTH: i32 = 9;
 const BOARD_HEIGHT: i32 = 6;
@@ -42,6 +58,7 @@ const SQUARE_SIZE: f32 = 4.0;
 
 //fn calc_chessboard_corners() ->
 
+#[derive(Debug)]
 struct Chessboard {
 	pub corners_2d: Mat,
 	pub corners_3d: Vec<Point3f>,
@@ -50,11 +67,11 @@ struct Chessboard {
 impl Chessboard {
 	fn find(frame: &Mat) -> Option<Self> {
 		let mut corners = Mat::default();
-
 		if (!calib3d::find_chessboard_corners(
 				&frame, Size::new(BOARD_WIDTH, BOARD_HEIGHT),
 				&mut corners, 
-				calib3d::CALIB_CB_ADAPTIVE_THRESH + calib3d::CALIB_CB_NORMALIZE_IMAGE
+				calib3d::CALIB_CB_ADAPTIVE_THRESH
+				    + calib3d::CALIB_CB_NORMALIZE_IMAGE
 					+ calib3d::CALIB_CB_FAST_CHECK).unwrap()) {
 			return None;
 		}
@@ -62,7 +79,6 @@ impl Chessboard {
 		let subpix_criteria = TermCriteria::new(
 			TermCriteria_Type::EPS as i32 | TermCriteria_Type::COUNT as i32,
 			30, 0.001).unwrap();
-
 		imgproc::corner_sub_pix(&frame, &mut corners, Size::new(11, 11), Size::new(-1, -1), subpix_criteria).unwrap();
 
 		Some(Self {
@@ -72,14 +88,39 @@ impl Chessboard {
 	}
 }
 
-struct State {
-	pub observations: Vec<Chessboard>,
-	//pub views: UnGraph::<u64, ()>,
+/**
+* Contains info about the state of an observer viewing a scene at some point in
+* time.
+*/
+#[derive(Debug)]
+pub struct Sample {
+
+}
+
+#[derive(Debug)]
+enum Observation {
+	KeyFrame,
+	Landmark(Uuid, Chessboard),
+}
+
+/**
+ * Reconstructs a world as viewed by some observer represented as a continuous
+ * feed of monocular camera images.
+ * 
+ * In other words if you feed this class video recordings or live camera input
+ * it'll estimate and concurrently refine the camera's pose as it travel(s/ed)
+ * through the scene and various observed 3d landmarks.
+ */
+struct World {
+	pub observations: Graph<Observation, ()>, // Stuff we've seen at the places we've been.
+	last_sample: Option<NodeIndex>,
+	pub landmarks: HashMap<Uuid, NodeIndex>,
+	//pub nearby: Graph<Uuid, Uuid>,              // Landmarks observed near other landmarks.
 	//pub K: Mat,
 	//pub dist_coef: Mat,
 }
 
-impl State {
+impl World {
 	pub fn new() -> Self {
 		//let K = Mat::eye_size(Size::new(3, 3), CV_64F).unwrap();
         //K.at<double>(0, 0) = fx;
@@ -95,8 +136,10 @@ impl State {
         //dist_coef.at<double>(3) = p2;
 
 		Self {
-			observations: Vec::new(),
-			//views: UnGraph::new(),
+			observations: Graph::new(),
+			last_sample: None,
+			landmarks: HashMap::new(),
+			//nearby: Graph::new(),
 			//K,
 			//dist_coef,
 		}
@@ -106,17 +149,52 @@ impl State {
 		let mut gray = Mat::default();
 		imgproc::cvt_color(&frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0).unwrap();
 
-		if let Some(chessboard) = Chessboard::find(&gray) {
-			self.add_observation(chessboard);
+		let landmarks = self.find_landmarks(&gray);
+		if landmarks.len() > 0 {
+			let keyframe = self.add_keyframe();
+
+			for (uuid, landmark) in landmarks {
+				let landmark = self.landmarks
+					.entry(uuid)
+					.or_insert_with(|| self.observations.add_node(Observation::Landmark(uuid, landmark)))
+					.clone();
+
+
+				self.observations.add_edge(keyframe, landmark, ());
+			}
+
 			return true;
 		}
 
 		false
 	}
 
-	pub fn add_observation(&mut self, chessboard: Chessboard) {
-		self.observations.push(chessboard);
+	fn find_landmarks(&self, frame: &Mat) -> Vec<(Uuid, Chessboard)> {
+		let mut landmarks = Vec::new();
+
+		if let Some(chessboard) = Chessboard::find(&frame) {
+			landmarks.push(
+				(
+					Uuid::parse_str("1651e3b0-cd6e-4e22-bb7e-6fe98d213b49").unwrap(),
+					chessboard
+				)
+			);
+		}
+
+		landmarks
 	}
+
+	fn add_keyframe(&mut self) -> NodeIndex {
+		let sample = self.observations.add_node(Observation::KeyFrame);
+
+		if let Some(last_sample) = self.last_sample {
+			self.observations.add_edge(last_sample, sample, ());
+		}
+		self.last_sample = Some(sample);
+
+		sample
+	}
+
 }
 
 fn main() -> Result<()> {
@@ -129,29 +207,35 @@ fn main() -> Result<()> {
 		panic!("Unable to open camera!");
 	}
 
-	let mut state = State::new();
+	let mut world = World::new();
+	let mut observation_count = 0u64;
 
 	loop {
 		if highgui::wait_key(10)? > 0 { break; }
+		if observation_count > 5 { break; }  // TODO: eliminate this when structure figured out.
 
 		let mut frame = Mat::default();
 		file.read(&mut frame)?;
 
-		if state.process_next(&frame) {
-			let observation = &state.observations[state.observations.len() - 1];
-			calib3d::draw_chessboard_corners(
-				&mut frame,
-				Size::new(BOARD_WIDTH, BOARD_HEIGHT),
-				&observation.corners_2d,
-				true);
+		if world.process_next(&frame) {
+			observation_count += 1;
+			
+			//let observation = &world.observations[state.observations.len() - 1];
+			//calib3d::draw_chessboard_corners(
+			//	&mut frame,
+			//	Size::new(BOARD_WIDTH, BOARD_HEIGHT),
+			//	&observation.corners_2d,
+			//	true);
 
-			println!("Found chessboard ({} so far)!", state.observations.len());
+			//println!("Found chessboard ({} so far)!", state.observations.len());
 		}
 
 		//draw_axis(&mut frame, &R, &t, &K, &dist_coef);
 
         highgui::imshow(window, &frame)?;
 	}
+
+	println!("{:?}", Dot::new(&world.observations));
 
 	Ok(())
 }
