@@ -1,6 +1,7 @@
 pub mod calibration;
-pub mod tracking;
 pub mod mapping;
+pub mod pattern;
+pub mod tracking;
 
 #[cfg(test)]
 mod tests {
