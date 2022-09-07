@@ -21,7 +21,9 @@ fn main() -> Result<()> {
 		if highgui::wait_key(10)? > 0 { break; }
 
 		let mut frame = Mat::default();
-		cam.read(&mut frame)?;
+		if !cam.read(&mut frame).expect("Failed to read next frame.") {
+            break;
+        }
 
         highgui::imshow(window, &frame)?;
 	}
