@@ -65,7 +65,7 @@ fn main() {
 	highgui::named_window(window, 1)
         .expect("Failed to create debug window!");
 
-    let mut file = videoio::VideoCapture::from_file("./assets/tracking_test_1.mp4", videoio::CAP_ANY)
+    let mut file = videoio::VideoCapture::from_file("./recording.mp4", videoio::CAP_ANY)
         .expect("Failed to open source file!");
 
 	if !videoio::VideoCapture::is_opened(&file)
@@ -82,7 +82,7 @@ fn main() {
 
 	loop {
 		if highgui::wait_key(10).expect("Failed to wait for key!") > 0 { break; }
-		if observation_count > 20 { break; }  // TODO: eliminate this when structure figured out.
+		//if observation_count > 20 { break; }  // TODO: eliminate this when structure figured out.
 
 		let mut frame = Mat::default();
 		if !file.read(&mut frame).expect("Failed to read next frame!") {
@@ -123,6 +123,6 @@ fn main() {
             &mut tvecs)
         .expect("Failed to calibrate camera!");
 
-    calib.write_to_file(String::from("./assets/tracking_test_1.calib.yaml"))
+    calib.write_to_file(String::from("./recording.calib.yaml"))
         .expect("Failed to create calib file.");
 }
