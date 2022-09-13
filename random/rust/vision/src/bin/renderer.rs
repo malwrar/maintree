@@ -2,6 +2,8 @@
 
 use std::time::Duration;
 
+use rand::Rng;
+
 use crossbeam_channel::{bounded, Receiver};
 
 use bevy::{
@@ -12,18 +14,23 @@ use bevy::{
 
 #[derive(Clone, Copy, Debug)]
 struct Pose {
-    foo: i32,
+    translation: Vec3,
 }
 
 impl Default for Pose {
     fn default() -> Self {
-        Self { foo: 0 }
+        Self { 
+            translation: Vec3::new(0.0, 0.0, 0.0),
+        }
     }
 }
 
 #[derive(Deref)]
 struct PoseReceiver(Receiver<Pose>);
 struct PoseEvent(Pose);
+
+#[derive(Component)]
+struct ARCamera {}
 
 fn setup_tracker(mut commands: Commands) {
     let (tx, rx) = bounded::<Pose>(1);
@@ -32,9 +39,14 @@ fn setup_tracker(mut commands: Commands) {
 
         // TODO: poll tracker here?
 
-        for i in 1..10 {
+        let mut rng = rand::thread_rng();
+        for _ in 1..10 {
             std::thread::sleep(Duration::from_secs(1));
-            tx.send(Pose { foo: i })
+            tx.send(Pose {
+                    translation: Vec3::new(rng.gen_range(-10.0..10.0),
+                            rng.gen_range(1.0..10.0),
+                            rng.gen_range(-10.0..10.0)),
+                })
                 .expect("Failed to send pose update.");
         }
     });
@@ -89,16 +101,23 @@ fn setup(
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         projection,
         ..default()
+    }).insert(ARCamera {
+
     });
 }
 
 fn update(
     mut pose_updates: EventReader<PoseEvent>,
+    mut query: Query<(&mut ARCamera, &mut Transform)>,
 ) {
     for e in pose_updates.iter() {
         let pose = e.0;
 
-        println!("{:?}", pose);
+        for (_camera, mut transform) in query.iter_mut() {
+            *transform = transform
+                .with_translation(pose.translation)
+                .looking_at(Vec3::ZERO, Vec3::Y);
+        }
     }
 }
 
