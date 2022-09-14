@@ -1,26 +1,37 @@
 //! 3d renderer for 
 
-use std::time::Duration;
-
 use rand::Rng;
-
-use crossbeam_channel::{bounded, Receiver};
 
 use bevy::{
     prelude::*,
-    ecs::system::Resource,
     render::camera::Projection,
+    window::PresentMode,
+};
+
+use crossbeam_channel::{bounded, Receiver};
+
+use opencv::{
+	highgui,
+	prelude::*,
+	videoio,
+};
+
+use vision::{
+    calibration::CameraCalibration,
+    tracking::Tracker,
 };
 
 #[derive(Clone, Copy, Debug)]
 struct Pose {
     translation: Vec3,
+    rotation: Vec3,
 }
 
 impl Default for Pose {
     fn default() -> Self {
         Self { 
             translation: Vec3::new(0.0, 0.0, 0.0),
+            rotation: Vec3::new(0.0, 0.0, 0.0),
         }
     }
 }
@@ -36,18 +47,56 @@ fn setup_tracker(mut commands: Commands) {
     let (tx, rx) = bounded::<Pose>(1);
 
     std::thread::spawn(move || {
+    	let window = "video capture";
+    	highgui::named_window(window, 1)
+            .expect("Failed to create debug window!");
+        
+        let mut file = videoio::VideoCapture::from_file("./assets/tracking_test_1.mp4", videoio::CAP_ANY)
+            .expect("Failed to open video file.");
+        
+        let calib = CameraCalibration::from_file(String::from("./assets/tracking_test_1.calib.yaml"))
+            .expect("Failed to open calibration file.");
+        
+    	if !videoio::VideoCapture::is_opened(&file)
+                .expect("Failed to open file.") {
+    		panic!("Unable to open file!");
+    	}
+    
+        let tracker = Tracker::new(calib);
 
-        // TODO: poll tracker here?
+    	loop {
+    		if highgui::wait_key(10).expect("") > 0 { break; }
 
-        let mut rng = rand::thread_rng();
-        for _ in 1..10 {
-            std::thread::sleep(Duration::from_secs(1));
-            tx.send(Pose {
-                    translation: Vec3::new(rng.gen_range(-10.0..10.0),
-                            rng.gen_range(1.0..10.0),
-                            rng.gen_range(-10.0..10.0)),
-                })
-                .expect("Failed to send pose update.");
+    		let mut frame = Mat::default();
+    		if !file.read(&mut frame).expect("Failed to read next frame.") {
+                break;
+            }
+        
+            let mut tvec = Mat::default();
+            let mut rvec = Mat::default();
+
+            if tracker.track(&mut frame, &mut tvec, &mut rvec) {
+
+                let translation = Vec3::new(
+                        *tvec.at_2d::<f64>(0, 0).unwrap() as f32,
+                        *tvec.at_2d::<f64>(1, 0).unwrap() as f32,
+                        *tvec.at_2d::<f64>(2, 0).unwrap() as f32);
+
+                let rotation = Vec3::new(
+                        (*tvec.at_2d::<f64>(0, 0).unwrap() as f32).to_radians(),
+                        (*tvec.at_2d::<f64>(1, 0).unwrap() as f32).to_radians(),
+                        (*tvec.at_2d::<f64>(2, 0).unwrap() as f32).to_radians());
+
+                tx.send(Pose {
+                        translation,
+                        rotation,
+                    })
+                    .expect("Failed to send pose update.");
+            }
+        
+
+            highgui::imshow(window, &frame)
+                .expect("Failed to show frame on debug window!");
         }
     });
 
@@ -70,14 +119,14 @@ fn setup(
 ) {
     // plane
     commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane { size: 50.0 })),
         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
         ..default()
     });
 
     // cube
     commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+        mesh: meshes.add(Mesh::from(shape::Cube { size: 3.0 })),
         material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
@@ -113,10 +162,13 @@ fn update(
     for e in pose_updates.iter() {
         let pose = e.0;
 
+        println!("Updating pose {:?}", pose);
+
         for (_camera, mut transform) in query.iter_mut() {
             *transform = transform
                 .with_translation(pose.translation)
-                .looking_at(Vec3::ZERO, Vec3::Y);
+                .with_rotation(Quat::from_scaled_axis(pose.rotation));
+                //.looking_at(Vec3::ZERO, Vec3::Y);
         }
     }
 }
@@ -124,6 +176,13 @@ fn update(
 fn main() {
     App::new()
         .insert_resource(Msaa { samples: 4 })
+        .insert_resource(WindowDescriptor {
+            title: "Tracked cube position".to_string(),
+            width: 600.,
+            height: 600.,
+            present_mode: PresentMode::AutoVsync,
+            ..default()
+        })
         .add_event::<PoseEvent>()
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup)
