@@ -77,68 +77,6 @@ fn draw_axis(image: &mut Mat, r: &Mat, t: &Mat, k: &Mat, dist_coeffs: &Mat)  -> 
 	Ok(())
 }
 
-fn draw_cube(image: &mut Mat, r: &Mat, t: &Mat, k: &Mat, dist_coeffs: &Mat)  -> Result<()> {
-	// Define the virual 3d axis lines.
-	let vertices = VectorOfPoint3f::from_slice(&[
-		Point3f::new(0.0, 0.0, 0.0),
-		Point3f::new(3.0, 0.0, 0.0),
-		Point3f::new(0.0, 3.0, 0.0),
-		Point3f::new(3.0, 3.0, 0.0),
-		Point3f::new(0.0, 0.0, 3.0),
-		Point3f::new(3.0, 0.0, 3.0),
-		Point3f::new(0.0, 3.0, 3.0),
-		Point3f::new(3.0, 3.0, 3.0),
-	]);
-
-	let indices = [
-		// top
-		(0, 1),
-		(2, 3),
-		(0, 2),
-		(1, 3),
-
-		// bottom
-		(4, 5),
-		(6, 7),
-		(4, 6),
-		(5, 7),
-
-		// sides
-		(0, 4),
-		(1, 5),
-		(2, 6),
-		(3, 7),
-	];
-
-	let mut image_points = VectorOfPoint2f::new();
-	let mut jacobian = Mat::default();
-	calib3d::project_points(&vertices, &r, &t, &k, dist_coeffs,
-			&mut image_points, &mut jacobian, 0.0)
-		.unwrap();
-	// TODO: inverse of PnP?? Make a test program with artificial data.
-
-	// Palette
-	let g = Scalar::new(0.0, 0.0, 255.0, 1.0);
-
-	// Points
-	let pts = image_points.as_slice();
-
-	for (i, j) in indices {
-	    imgproc::line(image,
-				Point2i::new(pts[i].x as i32, pts[i].y as i32),
-				Point2i::new(pts[j].x as i32, pts[j].y as i32),
-				g, 2, 0, 0)
-			.unwrap();
-	}
-
-	// Draw the 2d points for good measure.
-	//for p in image_points {
-	//	imgproc::circle(image, Point2i::new(p.x as i32, p.y as i32), 1, c, 3, 0, 0).unwrap();
-	//}
-
-	Ok(())
-}
-
 fn preprocess_image(image: &Mat) -> Mat {
 	let mut gray = Mat::default();
 	imgproc::cvt_color(&image, &mut gray, imgproc::COLOR_BGR2GRAY, 0).unwrap();
@@ -146,7 +84,7 @@ fn preprocess_image(image: &Mat) -> Mat {
 }
 
 pub struct Tracker {
-    calib: CameraCalibration,
+    pub calib: CameraCalibration,
     pub map: MetricMap,
 }
 
@@ -158,35 +96,24 @@ impl Tracker {
         }
     }
 
-    pub fn annotate_frame(&self, frame: &mut Mat) {
+    pub fn track(&self, frame: &Mat, rvec: &mut Mat, tvec: &mut Mat) -> bool {
         let preprocessed = preprocess_image(&frame);
 
-        for (points_2d, board) in Chessboard::find(&preprocessed, 9, 6) {
-            //for pt in &points_2d {
-            //    //imgproc::circle(frame,
-            //    //        Point2i::new(pt.x as i32, pt.y as i32), 1,
-            //    //        Scalar::new(255.0, 255.0, 0.0, 255.0), 2, 0, 0)
-            //    //    .expect("Failed to draw circle!");
-            //}
-            let k = self.calib.k();
-            let dist_coeffs = self.calib.dist_coeffs();
-
-            let mut rvec = Mat::default();
-            let mut tvec = Mat::default();
-
+		if let Some((points_2d, board)) = Chessboard::find(&preprocessed, 9, 6).last() {
             calib3d::solve_pnp(
                     &VectorOfPoint3f::from_iter(board.points()),
-                    &VectorOfPoint2f::from_iter(points_2d),
-                    &k,
-                    &dist_coeffs,
-                    &mut rvec,
-                    &mut tvec,
+                    &VectorOfPoint2f::from_iter(points_2d.clone()),
+                    &self.calib.k(),
+                    &self.calib.dist_coeffs(),
+                    rvec,
+                    tvec,
                     false,
                     0)
                 .expect("Failed to solve PnP problem.");
 
-            draw_cube(frame, &rvec, &tvec, &k, &dist_coeffs)
-                .expect("Failed to draw axis.");
-        }
-    }
+			return true;
+		}
+
+		false
+	}
 }
