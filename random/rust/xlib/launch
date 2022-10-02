@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Launches ./src/bin target in Xephyr (nested X, kinda).
+
+# Feel free to change these if you'd like. 
+SCREEN_W=1280
+SCREEN_H=720
+HOST_DISPLAY="$DISPLAY"
+XEPH_DISPLAY=":1337"
+
+# Set up hook to terminate Xephyr if this script exits.
+terminate_xephyr() {
+    if [[ "$XEPH_PID" ]]; then
+        echo "Terminating Xephyr."
+        kill "$XEPH_PID"
+    fi
+}
+trap 'terminate_xephyr' EXIT
+
+# Launch Xephyr
+DISPLAY="$HOST_DISPLAY" \
+	Xephyr -br -ac -noreset \
+	-screen "${SCREEN_W}x${SCREEN_H}" \
+	"$XEPH_DISPLAY" &
+XEPH_PID=$!
+
+kill -0 $XEPH_PID
+if [[ $? -ne 0 ]]; then
+    echo "Xephyr failed to launch for some reason, exiting."
+    exit 1
+fi
+
+# Wait for Xephyr to start
+while ! DISPLAY="$XEPH_DISPLAY" xset q &>/dev/null; do
+    echo "Waiting for Xephyr to be ready..."
+    sleep 0.1
+done
+
+echo "Launched Xephyr at DISPLAY=$XEPH_DISPLAY (pid=$XEPH_PID)."
+echo "HINT: use ctrl+shift to unfocus mouse."
+
+# Build and run serenitywm. Note that it'll pick up the DISPLAY we set above.
+DISPLAY="$XEPH_DISPLAY" RUST_LOG="debug" cargo run --bin $1
