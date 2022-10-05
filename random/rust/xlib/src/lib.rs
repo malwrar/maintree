@@ -1,8 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+mod render;
+pub mod components;
+pub mod error;
+pub mod resources;
+pub mod systems;
+pub mod window_system;
+pub mod compositor;

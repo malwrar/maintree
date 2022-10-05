@@ -10,6 +10,11 @@ glm = "0.2.3"
 #legion = "0.3.1"
 log = "0.4"
 
+[dependencies.legion]
+version = "0.3.1"
+default-features = false
+features = [ "codegen", "serialize", "crossbeam-events" ]
+
 [dependencies.x11]
 git = "https://github.com/malwrar/x11-rs"
 branch = "backlog"
