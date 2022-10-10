@@ -1,3 +1,5 @@
+//! Basic demo of bevy capabilities.
+
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -13,9 +15,12 @@ use bevy::{
     prelude::*,
 };
 
+use bevy_sandbox::debug_camera::DebugCameraPlugin;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(DebugCameraPlugin::default())
         .add_startup_system(hello_world)
         .add_startup_system(setup_scene)
         .run();
@@ -53,12 +58,6 @@ fn setup_scene(
             ..default()
         },
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
-
-    // camera
-    commands.spawn_bundle(Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 }
