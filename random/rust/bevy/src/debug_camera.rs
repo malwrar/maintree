@@ -8,31 +8,24 @@ use bevy::{
     },
 };
 
-pub struct DebugCameraPlugin { }
+#[derive(Default)]
+pub struct CameraControllerPlugin;
 
-impl Default for DebugCameraPlugin {
-    fn default() -> Self {
-        Self {
-        }
-    }
-}
-
-impl Plugin for DebugCameraPlugin {
+impl Plugin for CameraControllerPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_startup_system(spawn_camera)
-            .add_system(tilt_and_zoom_camera);
+            .add_system(control_camera);
     }
 }
 
 #[derive(Component)]
-pub struct DebugCamera {
+pub struct CameraController {
     pub focus: Vec3,
     pub radius: f32,
     pub upside_down: bool,
 }
 
-impl Default for DebugCamera {
+impl Default for CameraController {
     fn default() -> Self {
         Self {
             focus: Vec3::ZERO,
@@ -54,17 +47,20 @@ fn spawn_camera(
 
     // camera
     commands.spawn_bundle(Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(0.0, 5.0, 10.0)
+            .looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
-    }).insert(DebugCamera::default());
+    }).insert(CameraController::default());
 }
 
-fn tilt_and_zoom_camera(
+fn control_camera(
+    time: Res<Time>,
+    key: Res<Input<KeyCode>>,
+    button: Res<Input<MouseButton>>,
     mut windows: ResMut<Windows>,
     mut ev_motion: EventReader<MouseMotion>,
     mut ev_scroll: EventReader<MouseWheel>,
-    button: Res<Input<MouseButton>>,
-    mut query: Query<(&mut DebugCamera, &mut Transform)>,
+    mut query: Query<(&mut CameraController, &mut Transform)>,
 ) {
     let window = windows.get_primary_mut().unwrap();
 
@@ -78,27 +74,55 @@ fn tilt_and_zoom_camera(
         window.set_cursor_visibility(true);
     }
 
-    // If the button isn't held at this point, we don't need to continue on to
-    // altering the camera's rotation.
-    if !button.pressed(MouseButton::Right) { return; }
+    if let Ok((_camera, mut transform)) = query.get_single_mut() {
+        // Translate the camera.
+        let speed = 0.1;
+        if key.pressed(KeyCode::W) {
+            transform.translation.z += -speed;
+        }
+        if key.pressed(KeyCode::S) {
+            transform.translation.z += speed;
+        }
+        if key.pressed(KeyCode::A) {
+            transform.translation.x += -speed;
+        }
+        if key.pressed(KeyCode::D) {
+            transform.translation.x += speed;
+        }
 
-    // Calculate how far our mouse cursor and scroll wheel has moved.
-    let mut cursor_delta = Vec2::ZERO;
-    for ev in ev_motion.iter() {
-        cursor_delta += ev.delta;
-    }
+        // Calculate how far our mouse cursor and scroll wheel has moved.
+        let mut cursor_delta = Vec2::ZERO;
+        let mut scroll_delta = 0.0;
 
-    let mut scroll_delta = 0.0;
-    for ev in ev_scroll.iter() {
-        scroll_delta += ev.y;
-    }
+        if button.pressed(MouseButton::Right) {
+            for ev in ev_motion.iter() {
+                cursor_delta += ev.delta;
+            }
+            println!("cursor_delta: {}", cursor_delta);
 
-    // Alter the rotation of the debug camera.
-    for (_camera, mut transform) in query.iter_mut() {
+            for ev in ev_scroll.iter() {
+                scroll_delta += ev.y;
+            }
+
+            println!("scroll_delta: {}", scroll_delta);
+        }
+
+        // Rotate the camrea
         let delta = cursor_delta / Vec2::new(window.width(), window.height());
         let pitch = Quat::from_rotation_x(-delta.y);
         let yaw = Quat::from_rotation_y(-delta.x);
 
         transform.rotation = (yaw * transform.rotation) * pitch;
+    }
+}
+
+fn translate_camera(
+    mut windows: ResMut<Windows>,
+    key: Res<Input<KeyCode>>,
+    mut query: Query<(&mut CameraController, &mut Transform)>,
+) {
+    // Alter the rotation of the debug camera.
+    for (_camera, mut transform) in query.iter_mut() {
+
     }
 }

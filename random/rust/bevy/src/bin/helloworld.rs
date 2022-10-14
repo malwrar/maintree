@@ -20,7 +20,7 @@ use bevy_sandbox::debug_camera::DebugCameraPlugin;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(DebugCameraPlugin::default())
+        .add_plugin(DebugCameraPlugin)
         .add_startup_system(hello_world)
         .add_startup_system(setup_scene)
         .run();
