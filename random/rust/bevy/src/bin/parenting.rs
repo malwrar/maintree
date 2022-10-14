@@ -53,11 +53,11 @@ fn setup_scene(
     ];
 
     for ((x, y), (width, height), z, color) in fake_windows {
-        let width =  (width / root_width);
+        let width =  width / root_width;
         let height = (height / root_height) * aspect_ratio;
 
-        let x = ((x / root_width) + (0.5 * width) - 0.5);
-        let y = (-((y / root_height) * aspect_ratio) + (0.5 * (1.0 - height)) - 0.25);
+        let x = (x / root_width) + (0.5 * width) - 0.5;
+        let y = -((y / root_height) * aspect_ratio) + (0.5 * (1.0 - height)) - 0.25;
 
         let transform = Transform::from_xyz(scale * x, scale * y + 2.0, z)
             .with_rotation(Quat::from_rotation_x(0.0));
