@@ -10,7 +10,6 @@ use opencv::{
         Point3f,
         Point2i,
         Scalar,
-        Size,
         CV_64F,
     },
     imgproc,
@@ -27,7 +26,6 @@ use opencv::{
 use vision::{
     calibration::CameraCalibration,
     tracking::Tracker,
-    pattern::{Chessboard, Pattern},
 };
 
 fn main() -> Result<()> {
@@ -87,6 +85,7 @@ fn main() -> Result<()> {
             let k = calib.k();
             let dist_coeffs = calib.dist_coeffs();
 
+            // OpenCV 3d -> 2d projection
             let mut jacobian = Mat::default();
             let mut pts1 = VectorOfPoint2f::new();
 
@@ -94,60 +93,11 @@ fn main() -> Result<()> {
                     &mut pts1, &mut jacobian, 0.0)
                 .expect("Failed to project automatically undistorted points.");
 
-            /*
-            let points = points
-                .iter()
-                .map(|pt| {
-                    let mut pt_mat = Mat::zeros(4, 1, CV_64F)
-                        .unwrap()
-                        .to_mat()
-                        .unwrap();
-
-                    *pt_mat.at_2d_mut(0, 0).unwrap() = pt.x as f64;
-                    *pt_mat.at_2d_mut(1, 0).unwrap() = pt.y as f64;
-                    *pt_mat.at_2d_mut(2, 0).unwrap() = pt.z as f64;
-                    *pt_mat.at_2d_mut(3, 0).unwrap() = 1.0;
-
-
-                    // TODO: do undistortion
-                    let p = (&k * rt * &pt_mat)
-                        .into_result()
-                        .unwrap()
-                        .to_mat()
-                        .unwrap();
-
-                    println!("k:      {:?}", k);
-                    println!("pt_mat: {:?}", pt_mat);
-                    println!("p:      {:?}", p);
-
-                    Point3f::new(
-                            *pt_mat.at_2d::<f64>(0, 0).unwrap() as f32,
-                            *pt_mat.at_2d::<f64>(1, 0).unwrap() as f32,
-                            *pt_mat.at_2d::<f64>(2, 0).unwrap() as f32)
-                })
-                .fold(VectorOfPoint3f::new(), |mut v, pt| { v.push(pt); v});
-
-            let k = Mat::eye_size(Size::new(3, 3), CV_64F)
-               .unwrap()
-               .to_mat()
-               .unwrap();
-
-            let dist_coeffs = Mat::zeros(1, 5, CV_64F)
-               .unwrap()
-               .to_mat()
-               .unwrap();
-
-            let mut pts2 = VectorOfPoint2f::new();
-            let mut jacobian = Mat::default();
-
-            calib3d::project_points(&points, &rvec, &tvec, &k, &dist_coeffs,
-                    &mut pts2, &mut jacobian, 0.0)
-                .expect("Failed to project automatically undistorted points.");
-            */
-
+            // Manual 3d -> 2d projection, should end up such that pts1 == pts2
             let mut pts2 = VectorOfPoint2f::new();
 
             for pt in &points {
+                // Point3f -> Mat
                 let mut pt_mat = Mat::zeros(4, 1, CV_64F)
                     .unwrap()
                     .to_mat()
@@ -159,15 +109,14 @@ fn main() -> Result<()> {
                 *pt_mat.at_2d_mut(3, 0).unwrap() = 1.0;
 
 
-                // TODO: do undistortion
+                // 3d -> 2d
                 let p = (&k * &rt * &pt_mat)
                     .into_result()
                     .unwrap()
                     .to_mat()
                     .unwrap();
 
-                println!("p: {:?}", p);
-
+                // homogenous -> euclidian
                 let z = *p.at_2d::<f64>(2, 0).unwrap() as f32;
                 let p = Point2f::new(
                         *p.at_2d::<f64>(0, 0).unwrap() as f32 / z,
@@ -176,12 +125,12 @@ fn main() -> Result<()> {
                 pts2.push(p);
             }
 
-            println!("aaa {}", points.len());
+            // Visually compare point positions and display any drift
             for (pt1, pt2) in pts1.iter().zip(pts2.iter()) { 
-                println!("{:?} {:?}", pt1, pt2);
                 draw_comparison(&mut frame_gray, pt1, pt2);
             }
 
+            // Also draw axis, to sanity-check tvec and rvec
             draw_axis(&mut frame_gray, &rvec, &tvec, calib);
         }
 
@@ -194,12 +143,6 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn preprocess_image(image: &Mat) -> Mat {
-    let mut gray = Mat::default();
-    imgproc::cvt_color(&image, &mut gray, imgproc::COLOR_BGR2GRAY, 0).unwrap();
-    gray
 }
 
 fn draw_comparison(
@@ -278,7 +221,6 @@ fn draw_axis(
     let r = Scalar::new(255.0, 0.0, 0.0, 1.0);
     let g = Scalar::new(0.0, 255.0, 0.0, 1.0);
     let b = Scalar::new(0.0, 0.0, 255.0, 1.0);
-    let c = Scalar::new(255.0, 255.0, 0.0, 1.0);
 
     // Points
     let image_points = image_points.as_slice();
