@@ -12,23 +12,12 @@ use crate::{
 
 use opencv::{
 	prelude::*,
-	core::{
-		Point2i,
-		Point3f,
-		Scalar,
-		Size,
-		TermCriteria,
-		TermCriteria_Type,
-	},
     types::{
         VectorOfPoint3f,
         VectorOfPoint2f,
     },
-    Result,
 	calib3d,
-	highgui,
 	imgproc,
-    videoio,
 };
 
 fn preprocess_image(image: &Mat) -> Mat {
