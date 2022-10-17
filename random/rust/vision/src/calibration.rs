@@ -28,7 +28,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::mapping::MetricMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct CameraCalibration {
     pub fx: f64,
     pub fy: f64,
