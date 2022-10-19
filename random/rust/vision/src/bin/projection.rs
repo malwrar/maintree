@@ -134,9 +134,9 @@ fn main() -> Result<()> {
                 *pt_mat.at_2d_mut(3, 0).unwrap() = 1.0;
 
 
-                // 3d -> 2d, result will be 4x1 vector whose w component we can
-                // ignore as it algebraically does not matter when we convert
-                // to euclidian next.
+                // 3d -> 2d. Result will be 4x1 vector, but we can ignore its w
+                // component during euclidian conversion as it algebraically
+                // does not matter.
                 let p = (&k2 * &rt * &pt_mat)
                     .into_result()
                     .unwrap()
