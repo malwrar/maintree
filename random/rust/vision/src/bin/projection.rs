@@ -5,11 +5,15 @@ use opencv::{
     calib3d,
     core::{
         hconcat,
+        vconcat,
+        invert,
+        DecompTypes,
         Mat,
         Point2f,
         Point3f,
         Point2i,
         Scalar,
+        Size,
         CV_64F,
     },
     imgproc,
@@ -41,8 +45,27 @@ fn main() -> Result<()> {
 
     let calib = CameraCalibration::from_file(String::from("./assets/office_calib_iphone/orbit_left_right.yaml"))
         .expect("Failed to open calibration file.");
+    let k = calib.k();
+    let dist_coeffs = calib.dist_coeffs();
+
+    // Instrinsic parameters become just another 4x4 matrix
+    let mut k2 = Mat::eye(4, 4, CV_64F)
+        .unwrap()
+        .to_mat()
+        .unwrap();
+
+    *k2.at_2d_mut(0, 0).unwrap() = calib.fx;
+    *k2.at_2d_mut(1, 1).unwrap() = calib.fy;
+    *k2.at_2d_mut(0, 2).unwrap() = calib.cx;
+    *k2.at_2d_mut(1, 2).unwrap() = calib.cy;
 
     let tracker = Tracker::new(calib);
+
+    let points = VectorOfPoint3f::from_slice(
+        (0..9)
+            .map(|x| Point3f::new(x as f32, x as f32, 0.0))
+            .collect::<Vec<Point3f>>()
+            .as_slice());
 
     loop {
         if highgui::wait_key(10)? > 0 { break; }
@@ -60,42 +83,43 @@ fn main() -> Result<()> {
         let mut tvec = Mat::default();
         let mut rvec = Mat::default();
 
+        let mut debug_view = Mat::default();
+        let mut _k = Mat::default();  // New camera matrix after undistort, useless to us
+        calib3d::undistort(&frame_gray, &mut debug_view, &k, &dist_coeffs, &mut _k)
+            .unwrap();
+
         if tracker.track(&frame, &mut rvec, &mut tvec) {
+            // rotation vector -> 3x3 rotation matrix
             let mut rmat = Mat::default();
             let mut jacobian = Mat::default();
             calib3d::rodrigues(&rvec, &mut rmat, &mut jacobian).unwrap();
 
+            // Will eventually be 4x4, see below
+            let mut rt = Mat::default();
+
             // [ r11 r12 r13 | tx ]
             // [ r21 r22 r23 | ty ]
             // [ r31 r32 r33 | tz ]
-            let mut rt = Mat::default();
+            // ...
             let mut matrices = VectorOfMat::new();
             matrices.push(rmat);
             matrices.push(tvec.clone());
             hconcat(&matrices, &mut rt).unwrap();
 
-            let points = VectorOfPoint3f::from_slice(&[
-                Point3f::new(1.0, 1.0, 0.0),
-                Point3f::new(2.0, 2.0, 0.0),
-                Point3f::new(3.0, 3.0, 0.0),
-                Point3f::new(4.0, 4.0, 0.0),
-                Point3f::new(5.0, 5.0, 0.0),
-            ]);
-        
-            let k = calib.k();
-            let dist_coeffs = calib.dist_coeffs();
+            // ...
+            // [ 0   0   0   | 1  ]
+            let mut matrices = VectorOfMat::new();
+            matrices.push(rt.clone());
+            matrices.push(Mat::from_slice(&[0.0, 0.0, 0.0, 1.0]).unwrap());
+            vconcat(&matrices, &mut rt).unwrap();
 
-            // OpenCV 3d -> 2d projection
-            let mut jacobian = Mat::default();
+            // for each point (x,y,z), do:
+            //
+            // [ fx 0  cx 0 ] [ r11 r12 r13 tx ]   [x]
+            // [ 0  fy cy 0 ] [ r21 r22 r23 ty ]   [y]
+            // [ 0  0  1  0 ] [ r31 r32 r33 tz ] * [z]
+            // [ 0  0  0  1 ] [ 0   0   0   1  ]   [1]
             let mut pts1 = VectorOfPoint2f::new();
-
-            calib3d::project_points(&points, &rvec, &tvec, &k, &dist_coeffs,
-                    &mut pts1, &mut jacobian, 0.0)
-                .expect("Failed to project automatically undistorted points.");
-
-            // Manual 3d -> 2d projection, should end up such that pts1 == pts2
-            let mut pts2 = VectorOfPoint2f::new();
-
             for pt in &points {
                 // Point3f -> Mat
                 let mut pt_mat = Mat::zeros(4, 1, CV_64F)
@@ -103,14 +127,17 @@ fn main() -> Result<()> {
                     .to_mat()
                     .unwrap();
 
+                // euclidian -> homogenous
                 *pt_mat.at_2d_mut(0, 0).unwrap() = pt.x as f64;
                 *pt_mat.at_2d_mut(1, 0).unwrap() = pt.y as f64;
                 *pt_mat.at_2d_mut(2, 0).unwrap() = pt.z as f64;
                 *pt_mat.at_2d_mut(3, 0).unwrap() = 1.0;
 
 
-                // 3d -> 2d
-                let p = (&k * &rt * &pt_mat)
+                // 3d -> 2d, result will be 4x1 vector whose w component we can
+                // ignore as it algebraically does not matter when we convert
+                // to euclidian next.
+                let p = (&k2 * &rt * &pt_mat)
                     .into_result()
                     .unwrap()
                     .to_mat()
@@ -122,24 +149,33 @@ fn main() -> Result<()> {
                         *p.at_2d::<f64>(0, 0).unwrap() as f32 / z,
                         *p.at_2d::<f64>(1, 0).unwrap() as f32 / z);
 
-                pts2.push(p);
+                pts1.push(p);
             }
+
+            // OpenCV 3d -> 2d projection
+            let mut jacobian = Mat::default();
+            let mut pts2 = VectorOfPoint2f::new();
+
+            calib3d::project_points(&points, &rvec, &tvec, &k, &dist_coeffs,
+                    &mut pts2, &mut jacobian, 0.0)
+                .expect("Failed to project automatically undistorted points.");
 
             // Visually compare point positions and display any drift
             for (pt1, pt2) in pts1.iter().zip(pts2.iter()) { 
-                draw_comparison(&mut frame_gray, pt1, pt2);
+                draw_comparison(&mut debug_view, pt1, pt2);
             }
 
             // Also draw axis, to sanity-check tvec and rvec
-            draw_axis(&mut frame_gray, &rvec, &tvec, calib);
+            draw_axis(&mut debug_view, &rvec, &tvec, calib);
         }
 
-        let aspect_ratio = frame_gray.rows() as f32 / frame_gray.cols() as f32;
+
+        let aspect_ratio = debug_view.rows() as f32 / debug_view.cols() as f32;
         let width = 1500.0;
         highgui::resize_window(window, width as i32, (width * aspect_ratio) as i32)
             .expect("Failed to resize window.");
 
-        highgui::imshow(window, &frame_gray)?;
+        highgui::imshow(window, &debug_view)?;
     }
 
     Ok(())
