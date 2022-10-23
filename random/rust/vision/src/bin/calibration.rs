@@ -8,11 +8,7 @@ use opencv::{
 		Point2i,
 		Point3f,
 		Scalar,
-		Size,
-		TermCriteria,
-		TermCriteria_Type,
 	},
-	calib3d,
 	highgui,
 	imgproc,
     videoio,
@@ -62,10 +58,10 @@ fn main() {
     //Args::parse();
 
 	let window = "video capture";
-	highgui::named_window(window, 1)
+	highgui::named_window(window, highgui::WINDOW_NORMAL)
         .expect("Failed to create debug window!");
 
-    let mut file = videoio::VideoCapture::from_file("./recording.mp4", videoio::CAP_ANY)
+    let mut file = videoio::VideoCapture::from_file("./assets/office_calib_iphone/orbit_left_right.mov", videoio::CAP_ANY)
         .expect("Failed to open source file!");
 
 	if !videoio::VideoCapture::is_opened(&file)
@@ -74,7 +70,7 @@ fn main() {
 	}
 
     // Find and record all chessboard info in the provided input.
-	let mut observation_count = 0u64;
+	let mut _observation_count = 0u64;
     let mut object_points: Vec<Vec<Point3f>> = Vec::new();
     let mut image_points: Vec<Vec<Point2f>> = Vec::new();
     let mut capture_width = 0;
@@ -92,10 +88,14 @@ fn main() {
         capture_width = capture_width.max(frame.cols());
         capture_height = capture_height.max(frame.rows());
 
+        let ratio = capture_height as f32 / capture_width as f32;
+        highgui::resize_window(window, 800, (800.0*ratio) as i32)
+            .expect("Failed to resize window.");
+
         let preprocessed = preprocess_image(&frame);
 
         for (points_2d, board) in Chessboard::find(&preprocessed, 9, 6) {
-			observation_count += 1;
+		_observation_count += 1;
 
             for pt in &points_2d {
                 imgproc::circle(&mut frame,
@@ -123,6 +123,6 @@ fn main() {
             &mut tvecs)
         .expect("Failed to calibrate camera!");
 
-    calib.write_to_file(String::from("./recording.calib.yaml"))
+    calib.write_to_file(String::from("./assets/office_calib_iphone/orbit_left_right.yaml"))
         .expect("Failed to create calib file.");
 }
