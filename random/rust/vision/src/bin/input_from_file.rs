@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let mut file = videoio::VideoCapture::from_file("./assets/tracking_test_1.mp4", videoio::CAP_ANY)?;
 
 	if !videoio::VideoCapture::is_opened(&file)? {
-		panic!("Unable to open camera!");
+		panic!("Unable to open file!");
 	}
 
 	loop {
