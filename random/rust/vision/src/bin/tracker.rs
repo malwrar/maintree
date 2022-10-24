@@ -18,6 +18,8 @@ use opencv::{
     Result,
 };
 
+use plotters::prelude::*;
+
 use vision::{
     calibration::CameraCalibration,
     tracking::Tracker,
@@ -43,6 +45,9 @@ fn main() {
     let tracker = Tracker::new(calib);
     let mut poses = Vec::new();
 
+    let mut capture_width = 0;
+    let mut capture_height = 0;
+
 	loop {
 		if highgui::wait_key(10).expect("") > 0 { break; }
 
@@ -51,6 +56,13 @@ fn main() {
             break;
         }
 
+        capture_width = capture_width.max(frame.rows());
+        capture_height = capture_height.max(frame.cols());
+
+        let ratio = capture_height as f32 / capture_width as f32;
+        highgui::resize_window(window, 80, (80.0*ratio) as i32)
+            .expect("Failed to resize window.");
+
 		let mut rvec = Mat::default();
 		let mut tvec = Mat::default();
 
@@ -58,13 +70,52 @@ fn main() {
             draw_cube(&mut frame, &rvec, &tvec, &tracker.calib.k(), &tracker.calib.dist_coeffs())
                 .expect("Failed to draw axis.");
 
-            poses.push((tvec, rvec));
+            poses.push(tvec);
         }
-
 
         highgui::imshow(window, &frame)
             .expect("Failed to show frame on debug window!");
 	}
+
+    println!("Tracked {} poses, rendering graph.", poses.len());
+
+    let root = BitMapBackend::new("translation_xy.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    let min_x = poses.iter().fold(f64::INFINITY, |a, b| b.at::<f64>(0).unwrap().min(a));
+    let max_x = poses.iter().fold(0.0, |a, b| b.at::<f64>(0).unwrap().max(a));
+    let min_y = poses.iter().fold(f64::INFINITY, |a, b| b.at::<f64>(1).unwrap().min(a));
+    let max_y = poses.iter().fold(0.0, |a, b| b.at::<f64>(1).unwrap().max(a));
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("translation xy", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(min_x..max_x, min_y..max_y)
+            .unwrap();
+
+    chart
+        .configure_mesh()
+        .draw()
+        .unwrap();
+
+    chart
+        .draw_series(LineSeries::new(
+            poses.iter().map(|t| (t.at::<f64>(0).unwrap().to_owned(), t.at::<f64>(1).unwrap().to_owned())),
+            &RED,
+        ))
+        .unwrap()
+        .label("translation");
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+
+    root.present().unwrap();
 }
 
 fn draw_cube(image: &mut Mat, r: &Mat, t: &Mat, k: &Mat, dist_coeffs: &Mat) -> Result<()> {
