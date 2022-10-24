@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     highgui::named_window(window, highgui::WINDOW_NORMAL)
         .expect("Failed to create debug window!");
 
-    let mut file = videoio::VideoCapture::from_file("assets/office_calib_iphone/translate_left_right.mov", videoio::CAP_ANY)?;
+    let mut file = videoio::VideoCapture::from_file("assets/office_calib_iphone/orbit_left_right.mov", videoio::CAP_ANY)?;
 
     if !videoio::VideoCapture::is_opened(&file)? {
         panic!("Unable to open video file!");

@@ -1,3 +1,4 @@
+pub mod bevy_plugin;
 pub mod calibration;
 pub mod mapping;
 pub mod pattern;
