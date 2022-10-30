@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bevy = "0.8.1"
 crossbeam-channel = "0.5.0"
 opencv = "0.66"
 nalgebra = "0.31.1"
@@ -17,7 +18,7 @@ petgraph = "0.6.2"
 uuid = { version = "0.4", features = [ "v4" ] }
 clap = { version = "3.2.20", features = ["derive"] }
 
-[dependencies.bevy]
+[patch.crates-io.bevy]
 git = "https://github.com/malwrar/bevy"
 branch = "release-0.8.1"
 
