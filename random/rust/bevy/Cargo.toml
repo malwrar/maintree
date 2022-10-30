@@ -3,11 +3,15 @@ name = "bevy-sandbox"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 bevy = "0.8.1"
+bevy_flycam = "0.8.1"
+bevy_infinite_grid = { git = "https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid", branch = "main" }
 
 [dependencies.x11]
 git = "https://github.com/malwrar/x11-rs"
 branch = "backlog"
+
+[patch.crates-io.bevy]
+git = "https://github.com/malwrar/bevy"
+branch = "release-0.8.1"
