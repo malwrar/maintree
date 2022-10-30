@@ -1,19 +1,6 @@
 //! Basic demo of bevy capabilities.
 
-use std::fs;
-use std::io;
-use std::path::PathBuf;
-
-use bevy::{
-    /*
-    render::{
-        mesh::Indices,
-        texture::{Image, ImageType},
-        render_resource::PrimitiveTopology,
-    },
-    */
-    prelude::*,
-};
+use bevy::prelude::*;
 
 use bevy_infinite_grid::GridShadowCamera;
 
