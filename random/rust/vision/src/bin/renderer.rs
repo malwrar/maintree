@@ -83,7 +83,7 @@ fn update(
 ) {
     for e in cv_events.iter() {
 
-        println!("Updating pose {:?}", e);
+        //println!("Updating pose {:?}", e);
 
         let (_, mut transform) = query.iter_mut().last().unwrap();
 
@@ -92,7 +92,13 @@ fn update(
                 let t = pose.translation;
                 let t = Vec3::new(t.x, t.y, -t.z);
 
+                let r = pose.rotation;
+                let r = Quat::from_euler(EulerRot::XYZ, -90f32.to_radians(), r.y, r.z);
+
+                println!("{}", r.x.to_degrees());
+
                 *transform = transform
+                    .with_rotation(r)
                     .with_translation(t);
             },
             //e => println!("Unhandled CvEvent: {:?}", e),

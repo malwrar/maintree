@@ -79,10 +79,10 @@ fn setup_processing_thread(mut commands: Commands) {
         // When footage ends, repeat playback.
         loop {
             // Open input video feed & metadata.
-            let mut file = videoio::VideoCapture::from_file("./assets/office_calib_iphone/orbit_left_right.mov", videoio::CAP_ANY)
+            let mut file = videoio::VideoCapture::from_file("./assets/office_calib_iphone/translate_left_right.mov", videoio::CAP_ANY)
                 .expect("Failed to open video file.");
 
-            let calib = CameraCalibration::from_file(String::from("./assets/office_calib_iphone/orbit_left_right.yaml"))
+            let calib = CameraCalibration::from_file(String::from("./assets/office_calib_iphone/translate_left_right.yaml"))
                 .expect("Failed to open calibration file.");
 
             if !videoio::VideoCapture::is_opened(&file)
@@ -109,12 +109,18 @@ fn setup_processing_thread(mut commands: Commands) {
 
                 if tracker.track(&frame, &mut rvec, &mut tvec) {
                     let translation = Vec3::new(
-                            *tvec.at_2d::<f64>(0, 0).unwrap() as f32,
-                            *tvec.at_2d::<f64>(1, 0).unwrap() as f32,
-                            *tvec.at_2d::<f64>(2, 0).unwrap() as f32);
+                            -*tvec.at_2d::<f64>(0, 0).unwrap() as f32,
+                            *tvec.at_2d::<f64>(2, 0).unwrap() as f32,
+                            *tvec.at_2d::<f64>(1, 0).unwrap() as f32);
+
+                    let rotation = Vec3::new(
+                            *rvec.at_2d::<f64>(0, 0).unwrap() as f32,
+                            *rvec.at_2d::<f64>(2, 0).unwrap() as f32,
+                            *rvec.at_2d::<f64>(1, 0).unwrap() as f32);
 
                     let pose = Pose {
                         translation,
+                        rotation,
                         ..Default::default()
                     };
 
