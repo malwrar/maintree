@@ -6,7 +6,7 @@ use std::sync::Arc;
 use x11::xlib;
 use crate::{
     error::{Result, Error},
-    window_system::WindowRef,
+    window::WindowRef,
 };
 
 pub type NativeDisplay = *mut xlib::Display;

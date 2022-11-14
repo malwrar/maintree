@@ -1,19 +1,8 @@
-pub mod damage;
-pub mod composite;
 pub mod gl;
 
 use crate::error::Result;
 
 pub use self::{
-    damage::{
-        DamageWatcher,
-        DamageWatcherLevel,
-    },
-    composite::{
-        CompositeOverlayWindow,
-        CompositeRedirect,
-        CompositeRedirectMode,
-    },
     gl::GlWindow,
 };
 

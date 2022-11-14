@@ -8,20 +8,20 @@ use gl;
 use x11::glx;
 use x11::xlib;
 use crate::{
+    display::{
+        Display, 
+        NativeDisplay,
+    },
     error::{
         Error,
         Result
     },
-    window_system::{
-        Display,
+    window::{
         Window,
         WindowRef,
         NativeWindow,
-        NativeDisplay,
-        extension::{
-            RenderTarget,
-        },
     },
+    extension::RenderTarget,
 };
 
 const GLX_CONTEXT_MAJOR_VERSION_ARB: u32 = 0x2091;

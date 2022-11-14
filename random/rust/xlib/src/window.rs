@@ -4,7 +4,7 @@ use std::os::raw::{c_long, c_ulong, c_int, c_uint};
 use x11::xlib;
 use crate::{
     error::Result,
-    window_system::{
+    display::{
         Display,
         NativeDisplay,
     },

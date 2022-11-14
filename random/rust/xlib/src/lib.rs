@@ -1,7 +1,5 @@
-mod render;
-pub mod components;
+pub mod display;
 pub mod error;
-pub mod resources;
-pub mod systems;
-pub mod window_system;
-pub mod compositor;
+pub mod extension;
+pub mod render;
+pub mod window;
