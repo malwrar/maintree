@@ -156,6 +156,28 @@ impl CameraCalibration {
 
         dist_coeffs
     }
+
+    /// Generate an opengl projection matrix from intrinsic camera params.
+    /// 
+    /// Based on https://strawlab.org/2011/11/05/augmented-reality-with-OpenGL/
+    fn opengl_projection_matrix(
+        &self,
+        width: f64,
+        height: f64,
+        x0: f64,
+        y0: f64,
+        znear: f64,
+        zfar: f64,
+    ) -> Mat {
+        // here be dragons
+        Mat::from_slice_2d(&[
+            [2.0 * self.fx / width,  0.0, (width - 2.0 * self.cx + 2.0 * x0) / width,  0.0],
+            [0.0, -2.0 * self.fy / height, (height - 2.0 * self.cy + 2.0 * y0) / height,  0.0],
+            [0.0,  0.0, (-zfar - znear) / (zfar - znear), -2.0 * zfar * znear / (zfar - znear)],
+            [0.0,  0.0, -1.0,  0.0],
+        ])
+        .unwrap()
+    }
 }
 
 impl Default for CameraCalibration {

@@ -17,6 +17,8 @@ serde_yaml = "0.9"
 petgraph = "0.6.2"
 uuid = { version = "0.4", features = [ "v4" ] }
 clap = { version = "3.2.20", features = ["derive"] }
+gl = "0.14.0"
+glm = "0.2.3"
 
 [patch.crates-io.bevy]
 git = "https://github.com/malwrar/bevy"
@@ -24,3 +26,6 @@ branch = "release-0.8.1"
 
 [dependencies.bevy-sandbox]
 path = "../bevy"
+
+[dependencies.xlib-sandbox]
+path = "../xlib"
