@@ -56,6 +56,10 @@ fn main() -> Result<()> {
         include_str!("background.vert"),
         include_str!("background.frag")).unwrap();
 
+    let dots_shader = ShaderProgram::new_basic(
+        include_str!("dots.vert"),
+        include_str!("dots.frag")).unwrap();
+
     let background_mesh = MeshBuilder::new()
         .vertex_data(&[
             -1.0,  1.0, 0.0, 0.0, 1.0,  // upper left
@@ -70,6 +74,24 @@ fn main() -> Result<()> {
         .attribute(0, 3)
         .attribute(1, 2)
         .build();
+
+    let dots_mesh = MeshBuilder::new()
+        .vertex_data(&[
+            -0.5,  0.5, 0.0,  // upper left
+             0.5,  0.5, 0.0,  // upper right
+            -0.5, -0.5, 0.0,  // lower left
+             0.5, -0.5, 0.0,  // lower right
+        ])
+        .indices(&[
+            0, 1, 2,
+            1, 2, 3,
+        ])
+        .attribute(0, 3)
+        .build();
+
+
+    // Render scene
+    let object_pos = glm::vec3(0.0, 0.0, -1.0);
 
 	loop {
 		if highgui::wait_key(10)? > 0 { break; }
@@ -106,10 +128,34 @@ fn main() -> Result<()> {
 		// Render
         gl_window.start_frame().unwrap();
 
+		// ...background
         background_texture.activate();
         background_shader.activate();
 
         background_mesh.draw_triangles();
+
+		// ...dots
+        dots_shader.activate();
+        camera.look_at(object_pos);
+
+        let aspect_ratio = root_window_attrs.height as f32
+            / root_window_attrs.height as f32;
+
+        let model_scale = glm::normalize(glm::vec3(1.0, 1.0 * aspect_ratio, 1.0));
+
+        let modelview = camera.calc_view_matrix();
+        let modelview = glm::ext::translate(&modelview, object_pos);
+        let modelview = glm::ext::scale(&modelview, model_scale);
+        let projection = camera.calc_projection_matrix();
+
+        dots_shader.set_uniform_mat4f(
+			dots_shader.get_uniform("modelview").unwrap(),
+			&modelview);
+        dots_shader.set_uniform_mat4f(
+			dots_shader.get_uniform("projection").unwrap(),
+			&projection);
+
+        dots_mesh.draw_triangles();
 
         gl_window.render_frame().unwrap();
 	}
